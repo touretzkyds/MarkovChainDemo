@@ -5,7 +5,7 @@ import { useDictContext } from "./Context";
 
 export default function GenerateDict(props){
     //Get dictionary, branching factor, and number of bigrams from context manager
-    const {nGramDict, setNGramDict, modelType, setModelType, setGeneratedText, wordCount, build_dictionary, generate_text} = useDictContext();
+    const {nGramDict, setNGramDict, modelType, setModelType, setGeneratedText, wordCount, textGenMode, build_dictionary, generate_text} = useDictContext();
     //Input text - The Wizard of Oz, https://www.gutenberg.org/cache/epub/55/pg55-images.html
     let [inputText, setInputText] = useState(
 
@@ -183,8 +183,11 @@ export default function GenerateDict(props){
     const textRetrieval = (text) => {
         //Set input text
         setInputText(text.target.value)
-        //Enable the Re-Build Dictionary Button
-        setEnableButton(true);
+        //Check if we are not currently performing manual text generation
+        if (textGenMode != "manual") {
+            //Enable the Re-Build Dictionary Button
+            setEnableButton(true);
+        }
     }
     
     //When the re-build dictionary button is clicked
@@ -205,15 +208,19 @@ export default function GenerateDict(props){
 
     //Use Effect -> builds dictionary and generates text each time the model type is changed and the enable button is disabled.
     useEffect (() => {
-        if (!enableButton) {
+        //Check if the button is not enabled and that manual text generation is not currently being done
+        if (!enableButton && textGenMode != "manual") {
             //Trigger dictionary generation
             setNGramDict(build_dictionary(inputText, modelType));
         }
     }, [modelType])
 
-    //Generate Text when the dictionary is altered.
+    //Generate Text when the dictionary is altered. 
     useEffect(() => {
-        setGeneratedText(generate_text(nGramDict, modelType, wordCount));
+        //Check to verify that manual text generation has not taken place
+        if (textGenMode != "manual") {
+            setGeneratedText(generate_text(nGramDict, modelType, wordCount));
+        }
     }, [nGramDict, modelType, wordCount])
 
     //HTML
@@ -221,14 +228,24 @@ export default function GenerateDict(props){
         <div className = "text-processing" class = "flex flex-col space-y-2 h-full w-full items-center justify-center rounded-md bg-zinc-50 drop-shadow-md" >
             <div className = "panel-1-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
                 <p className = "text-entrance-text" class = "flex-auto monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs font-bold w-4/12">[1] Provide a Passage and Model.</p>
+                {textGenMode === "automatic" ? (
                 <div className = "n-gram-selection" class = "flex-auto space-x-4 w-2/6 align-center justify-center">
-                    <label class = "monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Select n-gram type:</label>
+                    <label class = "monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Select model type:</label>
                     <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = "bi-gram" onChange = {modelSelect} class = "h-fit w-5/12 monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center">
                         <option key = "bi-gram">Bi-gram</option>
                         <option key = "tri-gram">Tri-gram</option>
                         <option key = "tetra-gram">Tetra-gram</option>
                     </select>
                 </div>
+                ) : (
+                <div className = "n-gram-selection" class = "flex-auto space-x-4 w-2/6 align-center justify-center">
+                    <label class = "monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs text-gray-400">Select model type:</label>
+                    <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = "bi-gram" class = "h-fit w-5/12 text-gray-400 monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center">
+                        <option>{modelType}</option>
+                    </select>
+                </div>
+                )}
+
                 { enableButton ? (
                     <button className = "build-ngram-dict" onClick = {rebuild_dict_clicked} class = "flex-auto monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs bg-black text-white font-bold rounded-md w-2/12 h-10 outline outline-1 hover:bg-slate-700 hover:ring">Re-Build Dictionary</button>
                 ) : (

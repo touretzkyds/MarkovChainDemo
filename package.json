@@ -16,6 +16,7 @@
     "axios": "^1.4.0",
     "cytoscape": "^3.2.19",
     "cytoscape-cose-bilkent": "^4.1.0",
+    "cytoscape-dagre": "^2.5.0",
     "jsnumpy": "^1.1.10",
     "plotly.js": "^2.25.1",
     "react": "^18.2.0",

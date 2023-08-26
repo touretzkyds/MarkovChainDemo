@@ -2,14 +2,13 @@ import React, {useState, useEffect, useRef} from "react";
 import CytoscapeComponent from "react-cytoscapejs";
 import cytoscape from 'cytoscape';
 import COSEBilkent from 'cytoscape-cose-bilkent';
-import axios from "axios";
 import { useDictContext } from "./Context";
-axios.defaults.baseURL = "http://localhost:3001"
+import ManualVisualizations from "./ManualVisualizations";
 cytoscape.use(COSEBilkent);
 
 export default function Visualizations() {
     //Get N Gram Dictionary, Branching Factor, and Number of Entries from Context
-    const { userID, setUserID, nGramDict, setNGramDict, branchingFactor, setBranchingFactor, lenDict, setLenDict, modelType, setModelType, generateText} = useDictContext();
+    const { userID, setUserID, nGramDict, modelType, setModelType, textGenMode, setTextGenMode, generateText} = useDictContext();
     const [graphData, setGraphData] = useState([]);
     //Keep Track of all the words added to the graph
     const [wordsAdded, setWordsAdded] = useState([]);
@@ -43,7 +42,6 @@ export default function Visualizations() {
             }
         }
     ]
-
 
     //Add new data point (node or branch)
     const addDataPoint = (add_data) => {
@@ -117,23 +115,21 @@ export default function Visualizations() {
         }
     }, [layout])
 
-
     //Render
     return (
         <div className = "visualizations" class = "flex flex-col space-y-2 h-full w-full items-center justify-center rounded-md bg-zinc-50 drop-shadow-md">
             <div className = "panel-4-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
-                <p className = "text-entrance-text" class = "flex-auto font-bold monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs">[4] Visualize N-Gram.</p>
+                <p className = "text-entrance-text" class = "flex-auto font-bold monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs">[4] Visualize (Bi-Grams Only).</p>
                 <div className = "instructions" class = "flex flex-col justify-end items-right text-right w-1/2 h-full">
                     <p className = "instruction1" class = "flex-auto monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Mouse wheel / trackpad to zoom.</p>
                     <p className = "instruction1" class = "flex-auto monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Left button to pan (click and drag).</p>
                 </div>
             </div>
             <div id = "cyto-frame" className = "visualization-graph" class = "flex w-11/12 h-5/6 bg-white rounded-md">
-                {layoutBuilt ? (
-                    <CytoscapeComponent className = "cyto-graph" class = "h-full w-full" ref = {cytoRef} id = "cyto-graph" stylesheet = {cyStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}}/>
-                ) : (
-                    <div className = "loading" class = "flex h-full w-full text-center align-center items-center justify-center">Loading...</div>
-                )}
+                {layoutBuilt && textGenMode === "automatic" && <CytoscapeComponent className = "cyto-graph" class = "h-full w-full" ref = {cytoRef} id = "cyto-graph" stylesheet = {cyStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}}/>}
+                {layoutBuilt && textGenMode === "manual" && modelType !== "Bi-gram" && <CytoscapeComponent className = "cyto-graph" class = "h-full w-full" ref = {cytoRef} id = "cyto-graph" stylesheet = {cyStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}}/>}
+                {layoutBuilt && textGenMode === "manual" && modelType === "Bi-gram" && <ManualVisualizations />}
+                {!layoutBuilt && <div className = "loading" class = "flex h-full w-full text-center align-center items-center justify-center">Loading...</div>}
             </div>
         </div>
     )

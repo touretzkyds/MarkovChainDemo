@@ -17,7 +17,13 @@ export const DictContextProvider = ({ children }) => {
     //Set Text Generation Variables
     const [generatedText, setGeneratedText] = useState("");
     //Set word count
-    const [wordCount, setwordCount] = useState(100);
+    const [wordCount, setWordCount] = useState(100);
+    //Mode of text generation
+    const [textGenMode, setTextGenMode] = useState("automatic");
+    //Current word, key, and word options for manual text generation
+    const [currentWord, setCurrentWord] = useState("")
+    const [key, setKey] = useState("")
+    const [wordOptions, setWordOptions] = useState([])
 
     // ======== ALL PREPROCESSING FUNCTIONS (REFACTORED INTO JSX FROM PYTHON) ========
 
@@ -244,7 +250,7 @@ export const DictContextProvider = ({ children }) => {
                 //Choose new words based on values
                 word1 = word2;
                 word2 = word3;
-                word3 = tetragram_dict[key][Math.floor(Math.random() * tetragram_dict[key].length)];;
+                word3 = tetragram_dict[key][Math.floor(Math.random() * tetragram_dict[key].length)];
             //Set the word to null otherwise
             } else {
                 word1 = null;
@@ -302,7 +308,15 @@ export const DictContextProvider = ({ children }) => {
             generatedText,
             setGeneratedText,
             wordCount,
-            setwordCount,
+            setWordCount,
+            textGenMode,
+            setTextGenMode,
+            currentWord,
+            setCurrentWord,
+            key,
+            setKey,
+            wordOptions,
+            setWordOptions,
             //Functions
             get_words,
             make_bigram_dict,
