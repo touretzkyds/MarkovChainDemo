@@ -35,7 +35,7 @@ export default function GeneratePassage(props){
         <div className = "generated-passage-section" class = "flex flex-col space-y-2 h-full w-full align-left text-left items-center justify-center bg-zinc-50 rounded-md drop-shadow-md">
             <div className = "panel-2-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
                 <div className = "passage-text-and-generation-method" class = "flex-auto flex-col align-left items-left w-4/12">
-                    <div className = "generated-text" class = "flex font-bold monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs text-left w-full">[3] Generate {modelType}.</div>              
+                    <div className = "generated-text" class = "flex font-bold monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs text-left w-full">[3] Generate From {modelType} Dictionary.</div>              
                     <div className = "generation-method-selection" class = "flex flex-row w-fit space-x-2">
                         <div className = "auto-select" class = "flex flex-row space-x-2 w-fit">
                             <input type = "radio" id = "automatic" name = "generation-type" value = "automatic" onChange = {change_mode_generation} checked = {textGenMode === "automatic"} class = "flex" ></input>
@@ -51,7 +51,7 @@ export default function GeneratePassage(props){
                     <div class = "w-0"></div>
                 ): (
                     <div className = "automatic-instructions" class = "flex flex-auto w-4/12 text-xs h-full justify-center items-center">
-                        Add to the randomly chosen word to complete the passage!
+                        Choose a word to extend the passage.
                     </div>
                 )}
                 <div className = "button-and-word-limit-container" class = "flex w-1/3 h-full align-middle justify-end items-right space-x-2">

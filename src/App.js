@@ -48,7 +48,7 @@ export default function App() {
               <button className = "about-button" onClick = {openAboutWindow} class = "bg-white text-black font-bold hover:bg-black hover:text-white hover:ring rounded-md w-3/12 h-4/6 outline outline-1">About</button>
             </div>
           </div>
-          <div className = "application-body" class = "h-full grid gap-5 grid-cols-2 grid-rows-2 pt-3">
+          <div className = "application-body" class = "flex h-full grid gap-5 grid-cols-2 grid-rows-2 pt-3">
               <GenerateDict userID = {userID} dictGenerated = {dictGenerated} setDictGenerated = {setDictGenerated}/>
               <DisplayDict />
               <GeneratePassage userID = {userID}/>

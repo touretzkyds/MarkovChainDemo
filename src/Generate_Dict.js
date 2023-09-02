@@ -209,7 +209,7 @@ export default function GenerateDict(props){
     //Use Effect -> builds dictionary and generates text each time the model type is changed and the enable button is disabled.
     useEffect (() => {
         //Check if the button is not enabled and that manual text generation is not currently being done
-        if (!enableButton && textGenMode != "manual") {
+        if (!enableButton) {
             //Trigger dictionary generation
             setNGramDict(build_dictionary(inputText, modelType));
         }
@@ -228,24 +228,14 @@ export default function GenerateDict(props){
         <div className = "text-processing" class = "flex flex-col space-y-2 h-full w-full items-center justify-center rounded-md bg-zinc-50 drop-shadow-md" >
             <div className = "panel-1-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
                 <p className = "text-entrance-text" class = "flex-auto monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs font-bold w-4/12">[1] Provide a Passage and Model.</p>
-                {textGenMode === "automatic" ? (
-                <div className = "n-gram-selection" class = "flex-auto space-x-4 w-2/6 align-center justify-center">
-                    <label class = "monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Select model type:</label>
-                    <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = "bi-gram" onChange = {modelSelect} class = "h-fit w-5/12 monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center">
-                        <option key = "bi-gram">Bi-gram</option>
-                        <option key = "tri-gram">Tri-gram</option>
-                        <option key = "tetra-gram">Tetra-gram</option>
-                    </select>
-                </div>
-                ) : (
-                <div className = "n-gram-selection" class = "flex-auto space-x-4 w-2/6 align-center justify-center">
-                    <label class = "monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs text-gray-400">Select model type:</label>
-                    <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = "bi-gram" class = "h-fit w-5/12 text-gray-400 monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center">
-                        <option>{modelType}</option>
-                    </select>
-                </div>
-                )}
-
+                    <div className = "n-gram-selection" class = "flex-auto space-x-4 w-2/6 align-center justify-center">
+                        <label class = "monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Select model type:</label>
+                        <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = {modelType} onChange = {modelSelect} class = "h-fit w-5/12 monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center">
+                            <option key = "Bi-gram">Bi-gram</option>
+                            <option key = "Tri-gram">Tri-gram</option>
+                            <option key = "Tetra-gram">Tetra-gram</option>
+                        </select>
+                    </div>
                 { enableButton ? (
                     <button className = "build-ngram-dict" onClick = {rebuild_dict_clicked} class = "flex-auto monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs bg-black text-white font-bold rounded-md w-2/12 h-10 outline outline-1 hover:bg-slate-700 hover:ring">Re-Build Dictionary</button>
                 ) : (

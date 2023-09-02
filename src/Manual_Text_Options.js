@@ -25,7 +25,7 @@ export default function ManualTextOptions(props){
             setCurrentWord("")
             display_text = "";
         }
-    }, [enableNextWord])
+    }, [enableNextWord, modelType])
 
     //Check whether the display pane has been reset
     useEffect(() => {
@@ -104,10 +104,10 @@ export default function ManualTextOptions(props){
     }
 
     return (
-        <div className = "manual-text-pane" class = "flex flex-col w-3/12 p-2 h-full rounded-md outline outline-red-50 bg-white overflow-y-auto text-center items-center">
+        <div className = "manual-text-pane" class = "flex flex-col w-3/12 p-2 space-y-2 h-full rounded-md outline outline-red-50 bg-white overflow-y-auto text-center items-center">
             <div className = "options-header" class = "flex font-bold">Choose next word:</div>
             {wordOptions.map((word, index) => (
-                <button key = {index} onClick = {word_chosen} class = "text-red-500">{word}</button>
+                <button key = {index} onClick = {word_chosen} class = "flex w-full shadow-md text-center items-center justify-center text-red-500 rounded-3xl p-2 bg-zinc-50">{word}</button>
             ))}
         </div>
     )

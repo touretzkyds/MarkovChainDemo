@@ -3,7 +3,7 @@ import { useDictContext } from "./Context";
 
 function DisplayDict() {
     //Get variables from context
-    const { nGramDict, branchingFactor, setBranchingFactor, lenDict, setLenDict, branching_factor} = useDictContext();
+    const { nGramDict, modelType, branchingFactor, setBranchingFactor, lenDict, setLenDict, branching_factor} = useDictContext();
 
     //Calculate branching factor and length of dictionary each time the dict changes
     useEffect(() => {
@@ -34,7 +34,7 @@ function DisplayDict() {
     return (
         <div className = "dict-stat-display" class = "flex flex-col w-full h-full items-center align-center text-center justify-center rounded-md bg-zinc-50 drop-shadow-md space-y-2">
             <div className = "panel-2-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
-                <div className = "gen-dict-label" class = "flex-auto text-left justify-start monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs w-3/12 text-lg font-bold">[2] View Dictionary and Metrics.</div>
+                <div className = "gen-dict-label" class = "flex-auto text-left justify-start monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs w-3/12 text-lg font-bold">[2] {modelType} Dictionary and Metrics.</div>
                 <div className = "stat-display" class = "flex flex-grow align-center items-center w-5/12 h-4/6 bg-white outline outline-2 outline-green-900 rounded-md">
                     <div className = "stat_display" class = "flex-auto monitor:text-base 2xl:text-sm xl:text-xs sm:text-xs text-green-900 overflow-x-auto overflow-y-auto overflow-x"><strong>Number of Entries: </strong>{lenDict}, <strong>Branching Factor: </strong>{branchingFactor} </div>
                 </div>
@@ -44,14 +44,10 @@ function DisplayDict() {
             <div className = "dict-display" class = "w-11/12 h-5/6 outline outline-slate-200 bg-white rounded-md overflow-y-auto text-left p-2 inline">
                 {Object.entries(nGramDict).map(([key, value]) => (
                     <div key = {key} class = "">
-                        <strong class = "text-green-900">{key.replace(".", "<period>").replace("!", "<exclaim>").replace("?", "<question>").trim()}: </strong>
-                        {/* {key.includes(".") && <strong class = "text-green-900">&lt;period&gt; {key.replace(".", "").trim()}: </strong>}
-                        {key.includes("!") && <strong class = "text-green-900">&lt;exclaim&gt; {key.replace("!", "").trim()}: </strong>}
-                        {key.includes("?") && <strong class = "text-green-900">&lt;quotation&gt; {key.replace("?", "").trim()}: </strong>}
-                        {!key.includes(".") && !key.includes("!") && !key.includes("?") && <strong class = "text-green-900">{key}: </strong>} */}
+                        <strong class = "text-green-900">{key.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}: </strong>
                         {value.map((item, index) => (
                             <React.Fragment key = {index}>
-                                <li key = {index} class = "inline list-none">{item}</li>
+                                <li key = {index} class = "inline list-none">{item.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}</li>
                                 {index < value.length - 1 && <span>, </span>}
                             </React.Fragment>
                         ))}

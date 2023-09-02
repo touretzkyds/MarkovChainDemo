@@ -271,9 +271,52 @@ export const DictContextProvider = ({ children }) => {
         else if (model_type === "Tetra-gram") {gen_dict = make_tetragram_dict(input_text);}
         //Raise an error if model type is invalid
         else {throw ReferenceError("Invalid model type supplied to buildDictionary (expected 'Bi-gram', 'Tri-gram', or 'Tetra-gram').")}
+        //Sort by all alphabetical characters - non-alpha characters should be placed at the end of the dictionary.
+
+        // Helper function to compare words while keeping non-alpha words at the end
+        function compareWords(a, b) {
+            const isAlphaA = /[a-zA-Z]/.test(a); // Test if a is alphabetical
+            const isAlphaB = /[a-zA-Z]/.test(b); // Test if b is alphabetical
+        
+            if (isAlphaA && isAlphaB) {
+            return a.localeCompare(b); // Compare alphabetical words alphabetically
+            } else if (isAlphaA) {
+            return -1; // Place alphabetical words before non-alphabetical words
+            } else if (isAlphaB) {
+            return 1; // Place non-alphabetical words after alphabetical words
+            } else {
+            return a.localeCompare(b); // Compare non-alphabetical words alphabetically
+            }
+        }
+        
+        // Sort the lists within the dictionary
+        for (const key in gen_dict) {
+            gen_dict[key].sort(compareWords);
+        }
+
+        //Sort keys in the same way.
+        // Convert the object to an array of key-value pairs
         //Sort alphabetically via array conversion
         const gen_arr = Object.entries(gen_dict);
-        gen_arr.sort((a, b) => a[0].localeCompare(b[0]))
+        // Sort the array
+        gen_arr.sort((a, b) => {
+            const keyA = a[0];
+            const keyB = b[0];
+            
+            // Assign a sorting value for alphabet characters and symbols
+            const valueA = keyA[0].match(/[a-zA-Z]/) ? 0 : 1;
+            const valueB = keyB[0].match(/[a-zA-Z]/) ? 0 : 1;
+
+            // If both are of the same type (alphabet or symbol), compare them
+            if (valueA === valueB) {
+                return keyA.localeCompare(keyB);
+        }
+
+            // Alphabet characters come before symbols
+            return valueA - valueB;
+        });
+
+        // Convert the sorted array back to an object
         const sorted = Object.fromEntries(gen_arr);
         //Return dictionary
         return sorted;
