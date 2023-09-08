@@ -1,0 +1,15 @@
+.custom-header {
+    display: flex;
+    flex-direction: row;
+    height: 7%;
+    padding-bottom: 0.75 rem;
+}
+
+.custom-application-body {
+    display: grid;
+    height: 93%;
+    gap: 1.25rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    padding-top: 0.75 rem;
+}

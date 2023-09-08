@@ -6,6 +6,7 @@ import {v4 as uuidv4} from 'uuid';
 import DisplayDict from './Display_Dict';
 import Visualizations from './Visualizations';
 import { DictContextProvider } from './Context';
+import "./homepage.css"
 //From opening new webpages 
 
 export default function App() {
@@ -39,16 +40,16 @@ export default function App() {
     <DictContextProvider>
       <div className = "application-frame" class = "h-screen w-screen flex flex-col items-center justify-center py-8" >
         <div className = "application" class = "flex flex-col h-full w-11/12 text-left divide-y divide-solid">
-          <div className = "header-obj" class = "flex flex-row h-fit pb-3">
-            <div className = "header-text-col" class = "flex flex-col h-full w-9/12">
+          <div className = "header-obj" class = "custom-header">
+            <div className = "header-text-col" class = "flex flex-col w-9/12">
               <div className = "header-text" class = "text-2xl font-bold">Markov Chain Demo.</div>
               <div className = "subheader-text" class = "">An interactive tool to learn and visualize how n-gram models - a useful technique for statistical natural language processing - operate.</div>
-            </div>
-            <div className = "additional-info-col" class = "flex h-full w-3/12 h-full content-end items-end justify-end">
-              <button className = "about-button" onClick = {openAboutWindow} class = "bg-white text-black font-bold hover:bg-black hover:text-white hover:ring rounded-md w-3/12 h-4/6 outline outline-1">About</button>
+            </div>  
+            <div className = "additional-info-col" class = "flex h-full w-3/12 h-auto content-end items-end justify-end items-center">
+              <button className = "about-button" onClick = {openAboutWindow} class = "bg-white text-black font-bold hover:bg-black hover:text-white hover:ring rounded-md w-3/12 h-3/6 outline outline-1">About</button>
             </div>
           </div>
-          <div className = "application-body" class = "flex h-full grid gap-5 grid-cols-2 grid-rows-2 pt-3">
+          <div className = "application-body" class = "custom-application-body">
               <GenerateDict userID = {userID} dictGenerated = {dictGenerated} setDictGenerated = {setDictGenerated}/>
               <DisplayDict />
               <GeneratePassage userID = {userID}/>

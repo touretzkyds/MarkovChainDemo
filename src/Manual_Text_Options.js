@@ -3,7 +3,7 @@ import { useDictContext } from "./Context";
 
 export default function ManualTextOptions(props){
     //Get dictionary, model type, generated text, and word count
-    const {nGramDict, modelType, generatedText, setGeneratedText, wordCount, currentWord, setCurrentWord, key, setKey, wordOptions, setWordOptions} = useDictContext();
+    const {nGramDict, modelType, generatedText, setGeneratedText, currentWord, setCurrentWord, key, setKey, wordOptions, nodesAdded, setNodesAdded, setWordOptions} = useDictContext();
     //Inherit flag to signal manual text generation
     const {enableNextWord} = props;
     //Whether the display pane has been reset
@@ -19,6 +19,7 @@ export default function ManualTextOptions(props){
         if (enableNextWord) {
             //Clear the current pane
             setGeneratedText("");
+            setNodesAdded([]);
             //Clear all values
             setKey("")
             setWordOptions([])
@@ -51,7 +52,6 @@ export default function ManualTextOptions(props){
             //Display current word + previously generated text to pane
             display_text = generatedText + " " + currentWord;
             setGeneratedText(display_text);
-            console.log("GENERATED TEXT:", generatedText);
             //Set to receive next series of words
             let values = []
             let sentence = ""
@@ -64,7 +64,6 @@ export default function ManualTextOptions(props){
             } else if (modelType === "Tri-gram") {
                 //Get last word
                 sentence = generatedText.trim().split(" ");
-                console.log(sentence);
                 const last_word = sentence[sentence.length - 1]
                 //Use as key
                 const local_key = last_word + " " + currentWord
@@ -107,7 +106,9 @@ export default function ManualTextOptions(props){
         <div className = "manual-text-pane" class = "flex flex-col w-3/12 p-2 space-y-2 h-full rounded-md outline outline-red-50 bg-white overflow-y-auto text-center items-center">
             <div className = "options-header" class = "flex font-bold">Choose next word:</div>
             {wordOptions.map((word, index) => (
-                <button key = {index} onClick = {word_chosen} class = "flex w-full shadow-md text-center items-center justify-center text-red-500 rounded-3xl p-2 bg-zinc-50">{word}</button>
+                <button key = {index} onClick = {word_chosen} class = "flex w-full shadow-md text-center items-center justify-center rounded-3xl p-2 bg-zinc-50">{
+                    word
+                    }</button>
             ))}
         </div>
     )
