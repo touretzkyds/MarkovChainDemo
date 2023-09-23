@@ -63,7 +63,7 @@ export default function Visualizations() {
 
     //Build Graph Function
     const buildGraph = () => {
-        if (modelType === "Bi-gram"){
+        if (true){
             //Iterate over the nGram dictionary
             for (const [nodeWord, branchWords] of Object.entries(nGramDict)){
                 //Add Root Node
@@ -127,8 +127,8 @@ export default function Visualizations() {
             </div>
             <div id = "cyto-frame" className = "visualization-graph" class = "flex w-11/12 h-5/6 bg-white rounded-md">
                 {layoutBuilt && textGenMode === "automatic" && <CytoscapeComponent className = "cyto-graph" class = "h-full w-full" ref = {cytoRef} id = "cyto-graph" stylesheet = {cyStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}}/>}
-                {layoutBuilt && textGenMode === "manual" && modelType !== "Bi-gram" && <CytoscapeComponent className = "cyto-graph" class = "h-full w-full" ref = {cytoRef} id = "cyto-graph" stylesheet = {cyStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}}/>}
-                {layoutBuilt && textGenMode === "manual" && modelType === "Bi-gram" && <ManualVisualizations />}
+                {/* {layoutBuilt && textGenMode === "manual" && modelType !== "Bi-gram" && <CytoscapeComponent className = "cyto-graph" class = "h-full w-full" ref = {cytoRef} id = "cyto-graph" stylesheet = {cyStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}}/>} */}
+                {layoutBuilt && textGenMode === "manual" && <ManualVisualizations />}
                 {!layoutBuilt && <div className = "loading" class = "flex h-full w-full text-center align-center items-center justify-center">Loading...</div>}
             </div>
         </div>

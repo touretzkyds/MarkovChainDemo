@@ -26,6 +26,7 @@ export const DictContextProvider = ({ children }) => {
     const [wordOptions, setWordOptions] = useState([])
     //Keep track of nodes that have been added to the manual visualization graph (all selected)
     const [nodesAdded, setNodesAdded] = useState([]);
+    const [enableNextWord, setEnableNextWord] = useState(false);
 
 
     // ======== ALL PREPROCESSING FUNCTIONS (REFACTORED INTO JSX FROM PYTHON) ========
@@ -365,6 +366,8 @@ export const DictContextProvider = ({ children }) => {
             setWordOptions,
             nodesAdded,
             setNodesAdded,
+            enableNextWord,
+            setEnableNextWord,
             //Functions
             get_words,
             make_bigram_dict,

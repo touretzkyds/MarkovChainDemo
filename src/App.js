@@ -51,7 +51,7 @@ export default function App() {
           </div>
           <div className = "application-body" class = "custom-application-body">
               <GenerateDict userID = {userID} dictGenerated = {dictGenerated} setDictGenerated = {setDictGenerated}/>
-              <DisplayDict />
+              <DisplayDict/>
               <GeneratePassage userID = {userID}/>
               <Visualizations/>
           </div>
