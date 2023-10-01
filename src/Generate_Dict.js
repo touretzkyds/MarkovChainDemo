@@ -175,7 +175,7 @@ export default function GenerateDict(props){
     //Enabling the Re-build button
     let [enableButton, setEnableButton] = useState(false);
     //Text provided state
-    let [textProvided, setTextProvided] = useState(true);
+    let [validText, setValidText] = useState(true);
     //Dictionary generated state
     let {dictGenerated, setDictGenerated} = props;
 
@@ -192,10 +192,18 @@ export default function GenerateDict(props){
     
     //When the re-build dictionary button is clicked
     const rebuild_dict_clicked = () => {
-        //Update nGram dictionary
-        setNGramDict(build_dictionary(inputText, modelType));
-        //Set enable button to false
-        setEnableButton(false);
+        //Verify that adequate text has been provided
+        if (inputText.split(/\s+/).filter(word => word !== "").length < 2) {
+            setValidText(false);
+        }
+        else {setValidText(true);}
+        if (validText) {
+            //Update nGram dictionary
+            setNGramDict(build_dictionary(inputText, modelType));
+            //Set enable button to false
+            setEnableButton(false);
+        }
+
     }
 
     //When a model option is selected
@@ -226,11 +234,11 @@ export default function GenerateDict(props){
     //HTML
     return (
         <div className = "text-processing" class = "flex flex-col space-y-2 h-full w-full items-center justify-center rounded-md bg-zinc-50 drop-shadow-md" >
-            <div className = "panel-1-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
-                <p className = "text-entrance-text" class = "flex-auto monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs font-bold w-4/12">[1] Provide a Passage and Model.</p>
-                    <div className = "n-gram-selection" class = "flex-auto space-x-4 w-2/6 align-center justify-center">
-                        <label class = "monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Select model type:</label>
-                        <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = {modelType} onChange = {modelSelect} class = "h-fit w-5/12 monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center">
+            <div className = "panel-1-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-2">
+                <p className = "text-entrance-text" class = "flex-auto monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs font-bold w-4/12">[1] Provide a Passage; Choose a Model.</p>
+                    <div className = "n-gram-selection" class = "flex-auto flex-col w-1/6 align-center text-center items-center justify-center">
+                        <label class = "text-center monitor:text-sm 2xl:text-sm xl:text-sm sm:text-xs">Select model type:</label>
+                        <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = {modelType} onChange = {modelSelect} class = "flex-auto mx-auto block align-center items-center justify-center h-fit w-8/12 monitor:text-sm 2xl:text-sm xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center">
                             <option key = "Bi-gram">Bi-gram</option>
                             <option key = "Tri-gram">Tri-gram</option>
                             <option key = "Tetra-gram">Tetra-gram</option>
@@ -245,10 +253,10 @@ export default function GenerateDict(props){
             
             <textarea className = "gram-model-text" type = "textarea" defaultValue = {inputText} onChange = {textRetrieval} class = "rounded-md p-2 h-5/6 w-11/12 outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500"></textarea>
             {/* Display the text generation option if clicked is true*/}
-            {textProvided ? (
+            {validText ? (
                 <div></div>
             ) : (
-                <div className = "no-text-provided" class = "text-red-500 font-bold">Please provide a sample input passage with at least 2 words.</div>
+                <div className = "no-text-provided" class = "text-red-500 text-sm font-bold">Please provide a sample input passage with at least 2 words.</div>
             )}
         </div>
     )

@@ -25,7 +25,7 @@ export const DictContextProvider = ({ children }) => {
     const [key, setKey] = useState("")
     const [wordOptions, setWordOptions] = useState([])
     //Keep track of nodes that have been added to the manual visualization graph (all selected)
-    const [nodesAdded, setNodesAdded] = useState([]);
+    const [keysAdded, setKeysAdded] = useState([]);
     const [enableNextWord, setEnableNextWord] = useState(false);
 
 
@@ -364,8 +364,8 @@ export const DictContextProvider = ({ children }) => {
             setKey,
             wordOptions,
             setWordOptions,
-            nodesAdded,
-            setNodesAdded,
+            keysAdded,
+            setKeysAdded,
             enableNextWord,
             setEnableNextWord,
             //Functions

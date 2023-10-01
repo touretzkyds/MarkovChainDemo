@@ -27,7 +27,7 @@ export default function App() {
         "<div id = 'root_div' className = 'about_page' class = 'flex flex-col h-screen w-screen items-center justify-center py-8'>"+
           "<div className = 'application' class = 'flex flex-col h-full w-11/12 text-left divide-y divide-solid'>"+
             "<div className = 'header-text' class = 'text-2xl font-bold'><strong>About -  Markov Chain Demo.</strong></div>"+
-            "<div className = 'about-page'>Developed by Dr. David S. Touretsky (Carnegie Mellon University) and Aditya Dewan (The Woodlands Secondary School) (equal contribution).</div>"+
+            "<div className = 'about-page'>Developed by Dr. David S. Touretzky (Carnegie Mellon University) and Aditya Dewan (The Woodlands Secondary School) (equal contribution).</div>"+
             "<div>This work was funded by National Science Foundation award IIS-2112633.</div>"+
           "</div>"+
         "</div>"
@@ -38,16 +38,17 @@ export default function App() {
 
   return (
     <DictContextProvider>
-      <div className = "application-frame" class = "h-screen w-screen flex flex-col items-center justify-center py-8" >
+      <div className = "application-frame" class = "h-screen w-screen flex flex-col items-center justify-center py-5" >
         <div className = "application" class = "flex flex-col h-full w-11/12 text-left divide-y divide-solid">
           <div className = "header-obj" class = "custom-header">
-            <div className = "header-text-col" class = "flex flex-col w-9/12">
-              <div className = "header-text" class = "text-2xl font-bold">Markov Chain Demo.</div>
-              <div className = "subheader-text" class = "">An interactive tool to learn and visualize how n-gram models - a useful technique for statistical natural language processing - operate.</div>
-            </div>  
-            <div className = "additional-info-col" class = "flex h-full w-3/12 h-auto content-end items-end justify-end items-center">
-              <button className = "about-button" onClick = {openAboutWindow} class = "bg-white text-black font-bold hover:bg-black hover:text-white hover:ring rounded-md w-3/12 h-3/6 outline outline-1">About</button>
-            </div>
+            <div className = "header-text-col" class = "flex flex-col w-full">
+              <div className = "heading" class = "flex flex-row w-full h-full space-x-5">
+                <div className = "header-text" class = "text-2xl font-bold">Markov Chain Demo</div>
+                <button className = "about-button" onClick = {openAboutWindow} class = "bg-white text-black font-bold hover:bg-black hover:text-white hover:ring rounded-md w-1/12 h-full outline outline-1">About</button>
+              </div>
+              
+              <div className = "subheader-text" class = "">A tool to explore and tinker with n-grams - a statistical precursor to Large Language Models (LLMs).</div>
+            </div> 
           </div>
           <div className = "application-body" class = "custom-application-body">
               <GenerateDict userID = {userID} dictGenerated = {dictGenerated} setDictGenerated = {setDictGenerated}/>

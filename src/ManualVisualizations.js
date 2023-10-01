@@ -2,23 +2,32 @@ import React, {useState, useEffect, useRef} from "react";
 import CytoscapeComponent from "react-cytoscapejs";
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
+import euler from 'cytoscape-euler';
+import klay from 'cytoscape-klay'
+import cise from "cytoscape-cise";
+import COSEBilkent from "cytoscape-cose-bilkent";
 import { useDictContext } from "./Context";
-cytoscape.use(dagre);
+cytoscape.use(cise);
 
 //Function
 export default function ManualVisualizations() {
     //Get dictionary, generatedText, current word, key, word options, and more from context
-    const {nGramDict, modelType, generatedText, currentWord, key, wordOptions, enableNextWord, setEnableNextWord, nodesAdded, setNodesAdded} = useDictContext();
+    const {modelType, generatedText, currentWord, key, wordOptions, enableNextWord, keysAdded, setKeysAdded} = useDictContext();
     //Layout and whether it has been built
     const [layout, setLayout] = useState();
+    const [layoutName, setLayoutName] = useState("cise");
     const [layoutBuilt, setLayoutBuilt] = useState(false);
-    //Keep track of keys that have already been added to the graph
-    const [keysAdded, setKeysAdded] = useState([]);
+    //Keep track of all nodes that have already been added to the graph
+    const [nodesAdded, setNodesAdded] = useState([]);
     //Track whether the graph has been properly reset
     const [graphReset, setGraphReset] = useState(false);
     //Set graph reference, graph data, and style
     let graphRef = React.useRef(null);
     const [manualGraph, setManualGraph] = useState([]);
+    //A trigger for determining whether adding backwards connections is allowed or not (once per key change)
+    let backwardsCnxAllowed = false;
+    //A trigger for adding branches for tri-and-tetra-gram models (also once per key change)
+    let triTetraBranchAdditionAllowed = false;
     //For triggering updates - increment the variable to re-render the cytoscape graph
     const [updateInt, setUpdateInt] = useState(0);
     const manualGraphStyle = [
@@ -32,7 +41,9 @@ export default function ManualVisualizations() {
                 'height': '100px', // Node height
                 'font-size': '20px', // Label font size
                 'text-valign': 'center', // Vertical alignment of label
-                'text-halign': 'center' // Horizontal alignment of label
+                'text-halign': 'center', // Horizontal alignment of label
+                'text-wrap' : 'wrap',
+                'text-max-width' : "100px"
             }
         },
         {
@@ -88,7 +99,7 @@ export default function ManualVisualizations() {
     }
 
     //Keep track of all added keys
-    const trackAddedKeys = (new_key) => {
+    const addKeys = (new_key) => {
         setKeysAdded(previousKeys => {
             const newKey = new_key;
             const updatedKeyData = [...previousKeys, newKey];
@@ -96,112 +107,94 @@ export default function ManualVisualizations() {
         })
     }
 
+
     //Build manual graph
     const buildManualGraph = () => {
-        //Check if the key is not already present in the graph
-        //If not, add the key first. Otherwise, add a backward connection between the previous key and the current one if possible.
-        //Then, move straight to populating child nodes.
-        if (modelType !== "Bi-gram") {
-            console.log("TRI GRAM MODEL CHOSEN.");
-            const key_words = key.split(" ");
-            console.log("KEY WORDS", key_words);
-            for (var i = 0; i < key_words.length; i++) {
-                if (!keysAdded.includes(key_words[i])){
-                    //Add key
-                    let key_entry = { data : {id : key_words[i], label : key_words[i]}, position : { x:Math.random() * 100 + 50, y: Math.random() * 100 + 50}};
-                    addDataPoint(key_entry);
-                    //Track key as being added
-                    trackAddedKeys(key_words[i]); 
-                    //Add a branch between this and the previous key
-                    if (i > 0) {
-                        let keyWordBranch = { data : {source : key_words[i - 1], target : key_words[i], label : key_words[i-1] + key_words[i]}}
-                        addDataPoint(keyWordBranch)
-                    }
-                }  
+
+        //Delcare what the word key will be - particularly if the model is a tri-gram or tetra-gram
+        // const word_key = key.split(" ")[key.split(" ").length - 1];
+        const word_key = key;
+        console.log("WORD KEY:", word_key);
+
+        //Verify that the current key is not already a node on the graph
+        //If not, add it to the graph
+        if (!nodesAdded.includes(key)) {
+            //Create data point
+            let graph_entry = { data : {id : word_key, label : word_key.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}, position : { x:Math.random() * 100 + 50, y: Math.random() * 100 + 50}};
+            //Add to Graph
+            addDataPoint(graph_entry);
+            //Add to collection of nodesAdded
+            addNodes(key);
+        }
+        //For Tri-and-Tetra-Gram models, add a branch between the previous key and the current key
+        //Do so once per key change
+        if ((modelType === "Tri-gram" || modelType === "Tetra-gram") && triTetraBranchAdditionAllowed && keysAdded.length > 1) {
+            //Declare connection between previous key and current key
+            let cnx_branch = {data : {source : keysAdded[keysAdded.length - 2], target : word_key, label : keysAdded[keysAdded.length - 2] + word_key}};
+            //Add to graph
+            addDataPoint(cnx_branch);
+            //Disable additional branches amongst keys (not between keys and options) until a new key has been selected
+            triTetraBranchAdditionAllowed = false;
+        }
+
+        //React sometimes renders windows multiple times. To prevent multiple renders from adding multiple nodes, ensure that two identical consecutive nodes cannot be placed
+        //Verify that the previous key is not identical to the current key
+        if (keysAdded.length < 1) {addKeys(word_key);}
+        else if (keysAdded[keysAdded.length - 1] !== word_key) {addKeys(word_key);}
+
+        //Check to see if there are any duplicates of the current key present
+        const n_duplicate_keys = keysAdded.filter((graph_key) => (graph_key === word_key)).length - 1
+        //If duplicates are present add a backwards connection between the current key and the previous one
+        //Verify that backwards connections are allowed
+        if (n_duplicate_keys >= 1 && backwardsCnxAllowed) {
+            //Create backwards connection branch
+            let backwards_cnx_branch = {data : {source : keysAdded[keysAdded.length - 2], target : word_key, label : keysAdded[keysAdded.length - 2] + word_key + "BackwardsCnx"}};
+            //Add to graph
+            addDataPoint(backwards_cnx_branch);
+            //Disable future backwards connections until a new key is added
+            backwardsCnxAllowed = false;
+        }
+
+        //Add all selection options
+        wordOptions.forEach(word => {
+            //Check that the node has not already been added to the graph
+            if (!nodesAdded.includes(word)) {
+                //Create a node data point
+                let word_entry = { data : {id : word, label : word.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}, position : { x:Math.random() * 2000 + 50, y: Math.random() * 2000 + 50}};
+                //Add to the graph
+                addDataPoint(word_entry);
+                //Add a branch between the current key and final word of the key + the next
+                let key_word_branch = { data : {source : word_key, target : word, label : word_key + word}}
+                //Add branch to graph
+                addDataPoint(key_word_branch);
+                //Add word to list of added nodes
+                addNodes(word);
             }
-            //Iterate over wordOptions
-            wordOptions.forEach(word => {
-                //Check that the word has not already been added and that the word is not the key
-                if (!keysAdded.includes(word)) {
-                    //Add to graph
-                    let word_entry = { data : {id : word, label : word}, position : { x:Math.random() * 2000 + 50, y: Math.random() * 2000 + 50}}
-                    addDataPoint(word_entry);
-                    //Track word
-                    trackAddedKeys(word);
-                    //If the word has already been added but is a next-word, still add a branch
-                    //Add branch between key and word
-                    let keyWordBranch = { data : {source : key_words[key_words.length - 1], target : word, label : key_words[key_words.length - 1] + word}}
-                    addDataPoint(keyWordBranch)
-                //If both the key and the word are included in keyAdded, include a backwards connection
-                }
-            })
-        }
-        if (!keysAdded.includes(key) && modelType === "Bi-gram"){
-            //Add key
-            let key_entry = { data : {id : key, label : key}, position : { x:Math.random() * 100 + 50, y: Math.random() * 100 + 50}};
-            addDataPoint(key_entry);
-            //Track key as being added
-            trackAddedKeys(key);
-        }
-        //Add key to node array. Check to make sure that the preceding element is not identical (as this is neither possible nor desired).
-        //Duplicates spaced apart are allowed, however.
-        if (nodesAdded.length >= 1) { 
-            //Check if the last element is identical. If not, add.
-            if (nodesAdded[nodesAdded.length - 1] !== key) {addNodes(key);}
-        } else {addNodes(key);}
-        //Check if there are any duplicates in the nodes array
-        const count_keys = nodesAdded.filter((node) => (node === key)).length;
-        console.log("NUMBER OF KEYS FOUND:", count_keys);
-        //If so, add a backwards connection between the current key and the novel one
-        if (count_keys > 1) {
-            //Check that the backwards connection does not already exist
-            const num_backwards_connections = manualGraph.filter((data_item, data_index) =>  data_item["data"]["label"] === nodesAdded[nodesAdded.length - 2] + key + "Backward").length;
-            console.log("NUMBER OF BACKWARDS CONNECTIONS:", num_backwards_connections);
-            if (num_backwards_connections === 0) {
-                console.log("ADDITIONAL BRANCH ADDED BETWEEN:", nodesAdded[nodesAdded.length - 2], "AND", key)
-                let keyWordBranch = { data : {source : nodesAdded[nodesAdded.length - 2], target : key, label : nodesAdded[nodesAdded.length - 2] + key + "Backward"}}
-                addDataPoint(keyWordBranch);
-            }
-        }
+        })
+        
 
-        if (modelType === "Bi-gram") {
-            //Iterate over wordOptions
-            wordOptions.forEach(word => {
-                //Check that the word has not already been added and that the word is not the key
-                if (!keysAdded.includes(word)) {
-                    //Add to graph
-                    let word_entry = { data : {id : word, label : word}, position : { x:Math.random() * 2000 + 50, y: Math.random() * 2000 + 50}}
-                    addDataPoint(word_entry);
-                    //Track word
-                    trackAddedKeys(word);
-                    //If the word has already been added but is a next-word, still add a branch
-                    //Add branch between key and word
-                    let keyWordBranch = { data : {source : key, target : word, label : key + word}}
-                    addDataPoint(keyWordBranch)
-                //If both the key and the word are included in keyAdded, include a backwards connection
-                } else if (keysAdded.includes(key) && keysAdded.includes(word)){
-
-                }
-            })
-        }
-
-        //If both are included within keysAdded, draw a backwards connection with an arrowhead
     }
+
+    //If a new key is added, enable backwards connections and key branches for tri-and-tetra-grams once again
+    useEffect(() => {
+        backwardsCnxAllowed  = true;
+        triTetraBranchAdditionAllowed = true;
+    }, [keysAdded])
 
     //Each time a new node is added, delete the unselected options of previous nodes.
     useEffect(() => {
-        //Make sure that the length of nodes is greater than 1
-        if (nodesAdded.length > 1) {
+        //Make sure that the length of the keys is greater than 1
+        if (keysAdded.length > 1) {
             //Find the last introduced key
-            const previous_key = nodesAdded[nodesAdded.length - 2];
+            const previous_key = keysAdded[keysAdded.length - 2];
             //Get all non-selected word names associated with the previous key
             let unselected_node_names = [];
             //Iterate over graph data and store
             manualGraph.forEach(data_entry =>{
                 //Only consider branch data. Find all target words, being careful not to add the current key itself.
                 if ("source" in data_entry["data"] && data_entry["data"]["source"] === previous_key && data_entry["data"]["target"] !== key) {
-                    //Ensure that the target word is NOT already a node (which may be the case if the node is being revisited
-                    if (!nodesAdded.includes(data_entry["data"]["target"])) {
+                    //Ensure that the target word is NOT already a key (which may be the case if the node is being revisited)
+                    if (!keysAdded.includes(data_entry["data"]["target"])) {
                         unselected_node_names.push(data_entry["data"]["target"]);
                     }
                 }
@@ -221,14 +214,14 @@ export default function ManualVisualizations() {
                 })
             })
             //Remove unselected nodes from active. Filter via copy of array first
-            const filtered_keys_added = keysAdded.filter((key) => !unselected_node_names.includes(key));
+            const filtered_keys_added = nodesAdded.filter((key) => !unselected_node_names.includes(key));
             //Assign filtered keys.
-            setKeysAdded(filtered_keys_added);
+            setNodesAdded(filtered_keys_added);
             //Assign filtered graph to the currently active graph
             setManualGraph(filtered_graph);       
         }
 
-    }, [nodesAdded])
+    }, [keysAdded])
 
     //Each time the wordOptions change, re-render the graph
     useEffect(() => {
@@ -237,38 +230,44 @@ export default function ManualVisualizations() {
             buildManualGraph();
             //Set graph layout
             setLayout({
-                name: "dagre",
+                name: "cise",
                 fit: true,
                 rankDir: "LR",
-                // directed: true,
-                // circle: false,
+                directed: false,
+                circle: true,
                 // grid: false,
                 avoidOverlap: true,
-                spacingFactor: 1.5 + Math.random() * (1.8 - 1.5),
+                spacingFactor: 1.7, //1.5 + Math.random() * (1.8 - 1.5),
                 nodeDimensionsIncludeLabels: true,
-                animate: true,
+                animate: "end",
+                gravity : 1,
                 randomize: false,
                 ready: true,
                 stop: true,
+                klay : {
+                    addUnnecessaryBendpoints: true,
+                    mergeHierarchyCrossingEdges: false,
+                    direction : "RIGHT",
+                    // crossingMinimization: "INTERACTIVE",
+                    feedbackEdges: true,
+                    mergeEdges : true,
+                    //nodePlacement : "LINEAR_SEGMENTS"
+                }
             });
         }
-    }, [enableNextWord, manualGraph, graphReset, graphRef.current, currentWord, key, wordOptions, updateInt])
+    }, [graphReset, key, wordOptions, updateInt])
 
-    //
 
     //Colour all nodes that have already been generated RED.
     useEffect(() => {
         //Iterate over all nodes
-        console.log("Keys Added:", keysAdded);
-        console.log("Word Options", wordOptions);
         manualGraph.forEach(data_entry => {
             //Check that the cytoscape reference is up and running
             if (graphRef.current && !("source" in data_entry["data"])) {
                 const word = data_entry["data"]["id"]
                 const cy = graphRef.current._cy;
-                console.log("THE WORD:", word);
                 //Colour the node depending on whether the word is a key or a wordOption
-                if (key.split(" ").includes(word)) {
+                if (word === key) {
                     cy.nodes('[id=\"' + word + '\"]').style("background-color", "#14532D");
                     cy.nodes('[id=\"' + word + '\"]').style("color", "white");
                 } else if (wordOptions.includes(word)) {

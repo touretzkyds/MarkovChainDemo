@@ -1,13 +1,13 @@
 import React, {useState, useEffect} from "react";
 import { useDictContext } from "./Context";
 //For displaying options during manual text generation
-import ManualTextOptions from "./Manual_Text_Options";
+import ManualTextOptions from "./ManualTextOptions";
 
 //Function
 export default function GeneratePassage(props){
     //Get user ID and other helper variables from context
     //In particular, leverage nodesAdded rather than generatedText to display iteratively and higlight keys in automatic generation mode
-    const {nGramDict, modelType, generatedText, setGeneratedText, wordCount, setCurrentWord, wordOptions, setWordCount, textGenMode, setTextGenMode, nodesAdded, enableNextWord, setEnableNextWord, setNodesAdded, generate_text} = useDictContext();
+    const {nGramDict, modelType, generatedText, setGeneratedText, wordCount, setCurrentWord, wordOptions, setWordCount, textGenMode, setTextGenMode, enableNextWord, setEnableNextWord, setKeysAdded, generate_text} = useDictContext();
     //Enable next word selection panel
     // const [enableNextWord, setEnableNextWord] = useState(false);
     //Keep track for the switch whether the mode of generation is automatic or not
@@ -35,7 +35,7 @@ export default function GeneratePassage(props){
         }
         //Set generatedText to "" each time the mode has changed, as well as the nodes added array
         setGeneratedText("");
-        setNodesAdded([]);
+        setKeysAdded([]);
     }, [isAutomaticSwitch])
 
     //Get word limit when changed
@@ -51,7 +51,7 @@ export default function GeneratePassage(props){
 
     const clear_button_clicked = () => {
         // setGeneratedText("");
-        setNodesAdded([]);
+        setKeysAdded([]);
         setEnableNextWord(false);
         setTimeout(100);
         setEnableNextWord(true);
@@ -112,7 +112,7 @@ export default function GeneratePassage(props){
                     )}
                 </div>
             </div>
-            <div className = "text-generation-window" class = "flex flex-row w-11/12 h-5/6 space-x-2">
+            <div className = "text-generation-window" class = "flex flex-row w-11/12 h-4/6 space-x-2">
                 {textGenMode === "automatic" ? (
                     <div className = "automatic-text-container" class = "flex w-full h-full">
                         <div className = "generated-text" class = "w-full h-full bg-white outline outline-green-100 rounded-md overflow-y-auto p-2 text-left">{generatedText}</div>
@@ -120,7 +120,7 @@ export default function GeneratePassage(props){
                     </div>
                 ): (
                     <div className = "manual-text-container" class = "flex flex-row w-full h-full space-x-2">
-                        <div className = "generated-text" class = "flex w-9/12 h-full bg-white outline outline-sky-100 rounded-md overflow-y-auto p-2 text-left">
+                        <div className = "generated-text" class = "flex w-9/12 h-full bg-white outline outline-green-100 rounded-md overflow-y-auto p-2 text-left">
                             <div className = "text-container" class = "flex flex-wrap h-fit w-fit">
                             {generatedText.split(" ").map((word, index) => (
                                 //Display word and add a space if not at the final word

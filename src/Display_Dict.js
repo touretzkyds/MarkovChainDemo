@@ -4,12 +4,52 @@ import { useDictContext } from "./Context";
 function DisplayDict() {
     //Get variables from context
     const { nGramDict, modelType, branchingFactor, setBranchingFactor, lenDict, setLenDict, branching_factor} = useDictContext();
+    //To store frequency of words in the dictionary
+    const [frequencies, setFrequencies] = useState({});
 
-    //Calculate branching factor and length of dictionary each time the dict changes
+    //Calculate branching factor, length, and word frequencies of the dictionary (if the model is a bi-gram) each time the dict changes
     useEffect(() => {
         setBranchingFactor(branching_factor(nGramDict));
         setLenDict(Object.keys(nGramDict).length);
+        if (modelType === "Bi-gram") {determine_frequency();}
     }, [nGramDict])
+
+    //For each key in the dictionary, determine its frequency and store accordingly
+    const determine_frequency = () => {
+        //Create a dictionary to store frequencies
+        const store_frequencies = {};
+        //Iterate over all keys of nGramDict - for each, count the number of times it occurs in the values of the dictionary
+        for (const key of Object.keys(nGramDict)) {
+            //Set a counter
+            let num_entries = 0;
+            //Set a RegEx to match the key (more efficient for larger dictionaries)
+            console.log("Key:", key);
+            //Add backslash to key in case it is a special character
+            let regex_key = key;
+            if (key === "?" || key === "!" || key === ".") {
+                regex_key = "\\" + key
+            }
+            const regex = new RegExp(regex_key, "g");
+            //Iterate over all values in the dictionary
+            for (const valuesList of Object.values(nGramDict)) {
+                //Iterate over all values in the value dictionary
+                valuesList.forEach((value) => {
+                    //If a match is present, increase the count
+                    if (value.match(regex)) {num_entries += value.match(regex).length;}
+                })
+            }
+            console.log("Number found:", num_entries);
+            //Store the final count in the frequencies dictionary
+            store_frequencies[key] = num_entries;
+
+        }
+        //Set frequencies hook
+        setFrequencies(store_frequencies);
+    }
+
+    useEffect(() => {
+        console.log(frequencies);
+    }, [frequencies])
 
     //Save function
     const save_dictionary = () => {
@@ -47,7 +87,7 @@ function DisplayDict() {
                         <strong class = "text-green-900">{key.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}: </strong>
                         {value.map((item, index) => (
                             <React.Fragment key = {index}>
-                                <li key = {index} class = "inline list-none">{item.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}</li>
+                                <li key = {index} class = "inline list-none">{item.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}{modelType === "Bi-gram" && <span> ({frequencies[item]})</span>}</li>
                                 {index < value.length - 1 && <span>, </span>}
                             </React.Fragment>
                         ))}
