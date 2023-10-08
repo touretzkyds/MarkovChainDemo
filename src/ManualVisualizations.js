@@ -7,15 +7,15 @@ import klay from 'cytoscape-klay'
 import cise from "cytoscape-cise";
 import COSEBilkent from "cytoscape-cose-bilkent";
 import { useDictContext } from "./Context";
-cytoscape.use(cise);
+cytoscape.use(dagre);
 
 //Function
 export default function ManualVisualizations() {
     //Get dictionary, generatedText, current word, key, word options, and more from context
-    const {modelType, generatedText, currentWord, key, wordOptions, enableNextWord, keysAdded, setKeysAdded} = useDictContext();
+    const {modelType, generatedText, currentWord, key, wordOptions, enableNextWord, keysAdded, setKeysAdded, clearButtonClicked, setClearButtonClicked} = useDictContext();
     //Layout and whether it has been built
     const [layout, setLayout] = useState();
-    const [layoutName, setLayoutName] = useState("cise");
+    const [layoutName, setLayoutName] = useState("dagre");
     const [layoutBuilt, setLayoutBuilt] = useState(false);
     //Keep track of all nodes that have already been added to the graph
     const [nodesAdded, setNodesAdded] = useState([]);
@@ -49,8 +49,8 @@ export default function ManualVisualizations() {
         {
             selector: 'edge', // Apply the style to all edges
             style: {
-                'width': 11, // Edge width
-                'line-color': '#ccc', // Edge color
+                'width': 5, // Edge width
+                'line-color': 'black', // Edge color
                 "curve-style" : "bezier",
                 'target-arrow-shape': 'triangle',
                 'target-arrow-color' : 'black',
@@ -72,6 +72,21 @@ export default function ManualVisualizations() {
         //Graph data
         setManualGraph([]);
     }, [enableNextWord, modelType])
+
+    useEffect(() => {
+        if (clearButtonClicked) {
+            setGraphReset(false);
+            //Layout
+            setLayout();
+            setLayoutBuilt(false);
+            //Keys and Nodes
+            setKeysAdded([]);
+            setNodesAdded([]);
+            //Graph data
+            setManualGraph([]);
+            setClearButtonClicked(false);
+        }
+    }, [clearButtonClicked])
 
     //Verify that the reset has taken place
     useEffect(() => {
@@ -126,9 +141,13 @@ export default function ManualVisualizations() {
             //Add to collection of nodesAdded
             addNodes(key);
         }
+
+        //Check to see if there are any duplicates of the current key present
+        const n_duplicate_keys = keysAdded.filter((graph_key) => (graph_key === word_key)).length - 1
+
         //For Tri-and-Tetra-Gram models, add a branch between the previous key and the current key
         //Do so once per key change
-        if ((modelType === "Tri-gram" || modelType === "Tetra-gram") && triTetraBranchAdditionAllowed && keysAdded.length > 1) {
+        if ((modelType === "Tri-gram" || modelType === "Tetra-gram") && triTetraBranchAdditionAllowed && keysAdded.length > 1 && n_duplicate_keys < 1) {
             //Declare connection between previous key and current key
             let cnx_branch = {data : {source : keysAdded[keysAdded.length - 2], target : word_key, label : keysAdded[keysAdded.length - 2] + word_key}};
             //Add to graph
@@ -142,8 +161,7 @@ export default function ManualVisualizations() {
         if (keysAdded.length < 1) {addKeys(word_key);}
         else if (keysAdded[keysAdded.length - 1] !== word_key) {addKeys(word_key);}
 
-        //Check to see if there are any duplicates of the current key present
-        const n_duplicate_keys = keysAdded.filter((graph_key) => (graph_key === word_key)).length - 1
+
         //If duplicates are present add a backwards connection between the current key and the previous one
         //Verify that backwards connections are allowed
         if (n_duplicate_keys >= 1 && backwardsCnxAllowed) {
@@ -230,14 +248,14 @@ export default function ManualVisualizations() {
             buildManualGraph();
             //Set graph layout
             setLayout({
-                name: "cise",
+                name: layoutName,
                 fit: true,
                 rankDir: "LR",
                 directed: false,
                 circle: true,
                 // grid: false,
                 avoidOverlap: true,
-                spacingFactor: 1.7, //1.5 + Math.random() * (1.8 - 1.5),
+                spacingFactor: 1.5 + Math.random() * (1.8 - 1.5),
                 nodeDimensionsIncludeLabels: true,
                 animate: "end",
                 gravity : 1,

@@ -1,10 +1,14 @@
 import React, {useState, useEffect, useRef} from "react";
 import CytoscapeComponent from "react-cytoscapejs";
 import cytoscape from 'cytoscape';
-import COSEBilkent from 'cytoscape-cose-bilkent';
+import dagre from 'cytoscape-dagre';
+import euler from 'cytoscape-euler';
+import klay from 'cytoscape-klay'
+import cise from "cytoscape-cise";
+import COSEBilkent from "cytoscape-cose-bilkent";
 import { useDictContext } from "./Context";
 import ManualVisualizations from "./ManualVisualizations";
-cytoscape.use(COSEBilkent);
+cytoscape.use(klay);
 
 export default function Visualizations() {
     //Get N Gram Dictionary, Branching Factor, and Number of Entries from Context
@@ -88,23 +92,35 @@ export default function Visualizations() {
 
             }
         }
-
     }
 
     //When Mounting, change the graph based off of the data
     useEffect(() => {
         buildGraph();
         setLayout({
-            name: "concentric",
+            name: "grid",
             fit: true,
+            rankDir: "LR",
+            directed: true,
+            circle: false,
+            // grid: false,
             avoidOverlap: true,
-            spacingFactor: 1.7,
+            spacingFactor: 1.5 + Math.random() * (1.8 - 1.5),
             nodeDimensionsIncludeLabels: true,
-            animate: true,
+            animate: "end",
+            gravity : 1,
             randomize: false,
             ready: true,
             stop: true,
-    
+            klay : {
+                addUnnecessaryBendpoints: true,
+                mergeHierarchyCrossingEdges: false,
+                direction : "RIGHT",
+                // crossingMinimization: "INTERACTIVE",
+                feedbackEdges: true,
+                mergeEdges : true,
+                //nodePlacement : "LINEAR_SEGMENTS"
+            }
         });
 
     }, [nGramDict])
@@ -127,7 +143,6 @@ export default function Visualizations() {
             </div>
             <div id = "cyto-frame" className = "visualization-graph" class = "flex w-11/12 h-5/6 bg-white rounded-md">
                 {layoutBuilt && textGenMode === "automatic" && <CytoscapeComponent className = "cyto-graph" class = "h-full w-full" ref = {cytoRef} id = "cyto-graph" stylesheet = {cyStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}}/>}
-                {/* {layoutBuilt && textGenMode === "manual" && modelType !== "Bi-gram" && <CytoscapeComponent className = "cyto-graph" class = "h-full w-full" ref = {cytoRef} id = "cyto-graph" stylesheet = {cyStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}}/>} */}
                 {layoutBuilt && textGenMode === "manual" && <ManualVisualizations />}
                 {!layoutBuilt && <div className = "loading" class = "flex h-full w-full text-center align-center items-center justify-center">Loading...</div>}
             </div>

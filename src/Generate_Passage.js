@@ -7,7 +7,7 @@ import ManualTextOptions from "./ManualTextOptions";
 export default function GeneratePassage(props){
     //Get user ID and other helper variables from context
     //In particular, leverage nodesAdded rather than generatedText to display iteratively and higlight keys in automatic generation mode
-    const {nGramDict, modelType, generatedText, setGeneratedText, wordCount, setCurrentWord, wordOptions, setWordCount, textGenMode, setTextGenMode, enableNextWord, setEnableNextWord, setKeysAdded, generate_text} = useDictContext();
+    const {nGramDict, modelType, generatedText, setGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, key, setKey, display_text, setWordCount, textGenMode, setTextGenMode, enableNextWord, setEnableNextWord, setKeysAdded, generate_text, clearButtonClicked, setClearButtonClicked} = useDictContext();
     //Enable next word selection panel
     // const [enableNextWord, setEnableNextWord] = useState(false);
     //Keep track for the switch whether the mode of generation is automatic or not
@@ -18,6 +18,7 @@ export default function GeneratePassage(props){
         //Toggle current mode of generation to the opposite
         setIsAutomaticSwitch(!isAutomaticSwitch);
     }
+
 
     //Track when switch toggle changes register, and begin the process of changing generation modes.
     useEffect(() => {
@@ -51,10 +52,23 @@ export default function GeneratePassage(props){
 
     const clear_button_clicked = () => {
         // setGeneratedText("");
+        setClearButtonClicked(true);
+        setGeneratedText("");
         setKeysAdded([]);
-        setEnableNextWord(false);
-        setTimeout(100);
-        setEnableNextWord(true);
+        //Clear the current pane
+        setGeneratedText("");
+        setKeysAdded([]);
+        //Clear all values
+        setKey("")
+        setWordOptions([])
+        setCurrentWord("")
+        // display_text = "";
+
+        //Randomly select a word to begin with
+        const dict_keys = Object.keys(nGramDict);
+        const start_word = dict_keys[Math.floor(Math.random() * dict_keys.length)];
+        setCurrentWord(start_word);
+        
     }
 
     //When the Random Choice button is clicked in manual generation mode.

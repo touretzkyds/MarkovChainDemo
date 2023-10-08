@@ -3,7 +3,7 @@ import { useDictContext } from "./Context";
 
 export default function ManualTextOptions(props){
     //Get dictionary, model type, generated text, and word count
-    const {nGramDict, modelType, generatedText, setGeneratedText, currentWord, setCurrentWord, key, setKey, enableNextWord, setEnableNextWord, wordOptions, keysAdded, setKeysAdded, setWordOptions} = useDictContext();
+    const {nGramDict, modelType, textGenMode, generatedText, setGeneratedText, currentWord, setCurrentWord, key, setKey, enableNextWord, setEnableNextWord, wordOptions, keysAdded, setKeysAdded, setWordOptions} = useDictContext();
     //Inherit flag to signal manual text generation
     // const {enableNextWord} = props;
     //Whether the display pane has been reset
@@ -55,6 +55,7 @@ export default function ManualTextOptions(props){
             //Set to receive next series of words
             let values = []
             let sentence = ""
+            
             //Change keys based on the model - use currentWord as key for bi-gram, the last word + currentWord for tri-gram, and the last two words + currentWord for the tetra-gram
             if (modelType === "Bi-gram"){
                 //Get values via currentWord
@@ -86,9 +87,14 @@ export default function ManualTextOptions(props){
                 //Set key
                 setKey(local_key)
             }
-            const new_words = [...values];
-            //Set to word array
-            setWordOptions(new_words);
+            //Check if values is undefined. If so, notify the user that the end of the chain has been reached
+            if (values === undefined) {
+                setWordOptions(["End of chain"])
+            } else {
+                const new_words = [...values];
+                //Set to word array
+                setWordOptions(new_words);
+            }
         //If the current word is currently blank or undefined, begin definitions for the first time
         }
     }, [currentWord, reset])
@@ -102,13 +108,33 @@ export default function ManualTextOptions(props){
         setCurrentWord(chosen_word);
     }
 
+    // useEffect(() => {
+    //     if (textGenMode == "automatic") {
+    //         setEnableNextWord(true);
+    //     }
+    // }, [textGenMode])
+
+    // useEffect(() => {
+    //     if (textGenMode === "automatic" && reset) {
+    //         setCurrentWord(wordOptions(Math.floor(Math.random() * wordOptions.length)));
+    //     }
+    // }, [textGenMode, wordOptions, reset])
+
     return (
         <div className = "manual-text-pane" class = "flex flex-col w-3/12 p-2 space-y-2 h-full rounded-md outline outline-red-100 bg-white overflow-y-auto text-center items-center">
             <div className = "options-header" class = "flex font-bold">Choose next word:</div>
             {wordOptions.map((word, index) => (
-                <button key = {index} onClick = {word_chosen} class = "flex w-full shadow-md text-center items-center justify-center rounded-3xl p-2 bg-zinc-50 font-bold text-red-500">{
-                    word.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()
-                    }</button>
+                <div key = {index}>
+                    {word === "End of chain" ? (
+                        <button key = {index} class = "flex w-full shadow-md text-center items-center justify-center rounded-3xl p-2 bg-zinc-50 font-bold text-red-500">{
+                            word.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()
+                        }</button>
+                    ) : (
+                        <button key = {index} onClick = {word_chosen} class = "flex w-full shadow-md text-center items-center justify-center rounded-3xl p-2 bg-zinc-50 font-bold text-red-500">{
+                            word.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()
+                        }</button>
+                    )}
+                </div>
             ))}
         </div>
     )
