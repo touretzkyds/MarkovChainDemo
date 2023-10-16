@@ -7,6 +7,7 @@ import klay from 'cytoscape-klay'
 import cise from "cytoscape-cise";
 import COSEBilkent from "cytoscape-cose-bilkent";
 import { useDictContext } from "./Context";
+import { queryAllByLabelText } from "@testing-library/react";
 cytoscape.use(dagre);
 
 //Function
@@ -135,6 +136,7 @@ export default function ManualVisualizations() {
         //If not, add it to the graph
         if (!nodesAdded.includes(key)) {
             //Create data point
+            //If the model is a tri-or-tetra gram model, include the previous key in the word label
             let graph_entry = { data : {id : word_key, label : word_key.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}, position : { x:Math.random() * 100 + 50, y: Math.random() * 100 + 50}};
             //Add to Graph
             addDataPoint(graph_entry);
@@ -178,7 +180,17 @@ export default function ManualVisualizations() {
             //Check that the node has not already been added to the graph
             if (!nodesAdded.includes(word)) {
                 //Create a node data point
-                let word_entry = { data : {id : word, label : word.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}, position : { x:Math.random() * 2000 + 50, y: Math.random() * 2000 + 50}};
+                //First, establish a label
+                let label = word.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim();
+                //For tri-and-tetra-gram models, add the final word or the last two words of the key at the beginning of each option
+                console.log("Model type:", modelType);
+                console.log("Keys added:", keysAdded);
+                if (modelType === "Tri-gram") {
+                    label = key.split(" ").slice(-1).toString().replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim() + " " + label;
+                } else if (modelType === "Tetra-gram") {
+                    label = key.split(" ").slice(-2).toString().replace(",", " ").replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim() + " " + label;
+                }
+                let word_entry = { data : {id : word, label : label}, position : { x:Math.random() * 2000 + 50, y: Math.random() * 2000 + 50}};
                 //Add to the graph
                 addDataPoint(word_entry);
                 //Add a branch between the current key and final word of the key + the next

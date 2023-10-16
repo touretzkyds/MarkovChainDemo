@@ -7,18 +7,21 @@ import ManualTextOptions from "./ManualTextOptions";
 export default function GeneratePassage(props){
     //Get user ID and other helper variables from context
     //In particular, leverage nodesAdded rather than generatedText to display iteratively and higlight keys in automatic generation mode
-    const {nGramDict, modelType, generatedText, setGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, key, setKey, display_text, setWordCount, textGenMode, setTextGenMode, enableNextWord, setEnableNextWord, setKeysAdded, generate_text, clearButtonClicked, setClearButtonClicked} = useDictContext();
+    const {nGramDict, currentWord, modelType, autoGraphAllowed, setAutoGraphAllowed, generatedText, setGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, key, setKey, setWordCount, textGenMode, setTextGenMode, enableNextWord, setEnableNextWord, setKeysAdded, generate_text, clearButtonClicked, setClearButtonClicked} = useDictContext();
     //Enable next word selection panel
     // const [enableNextWord, setEnableNextWord] = useState(false);
     //Keep track for the switch whether the mode of generation is automatic or not
     const [isAutomaticSwitch, setIsAutomaticSwitch] = useState(true);
+    //Whether the display pane has been reset
+    const [reset, setReset] = useState(false);
+    //Set display text as blank initially
+    let display_text = "";
     
     //Get mode of generation when changed
     const change_mode_generation = () => {
         //Toggle current mode of generation to the opposite
         setIsAutomaticSwitch(!isAutomaticSwitch);
     }
-
 
     //Track when switch toggle changes register, and begin the process of changing generation modes.
     useEffect(() => {
@@ -48,8 +51,11 @@ export default function GeneratePassage(props){
     const gen_button_clicked = () => {
         //Generate text
         setGeneratedText(generate_text(nGramDict, modelType, wordCount))
+        //Set automatic graph generation to permitted
+        setAutoGraphAllowed(true);
     }
 
+    //When the clear button is clicked
     const clear_button_clicked = () => {
         // setGeneratedText("");
         setClearButtonClicked(true);
@@ -77,6 +83,104 @@ export default function GeneratePassage(props){
         const start_word = wordOptions[Math.floor(Math.random() * wordOptions.length)];
         //Set current word
         setCurrentWord(start_word);
+    }
+
+    //Choose a word - set the chosen word as the current word, and update wordOptions with new values
+    //Each time the enable boolean is altered, check to validate start
+    useEffect(() => {
+        setReset(false);
+        //Verify manual text generation is enabled
+        if (enableNextWord) {
+            //Clear the current pane
+            setGeneratedText("");
+            setKeysAdded([]);
+            //Clear all values
+            setKey("")
+            setWordOptions([])
+            setCurrentWord("")
+            display_text = "";
+        }
+    }, [enableNextWord, modelType])
+
+    //Check whether the display pane has been reset
+    useEffect(() => {
+        if (generatedText === "" && key === "" && wordOptions.length === 0 && currentWord === "") {
+            console.log("SUCCESSFULLY RESET.")
+            setReset(true);
+        }
+    }, [generatedText, key, wordOptions, currentWord])
+
+    //Once reset, randomly select a start word
+    useEffect(() => {
+        if (reset && textGenMode === "manual") {
+            //Randomly select a word to begin with
+            const dict_keys = Object.keys(nGramDict);
+            const start_word = dict_keys[Math.floor(Math.random() * dict_keys.length)];
+            setCurrentWord(start_word);
+        }
+    }, [reset])
+
+    //Each time the currentWord is updated, generate a new selection of words
+    useEffect(() => {
+        if (currentWord !== "" && currentWord !== undefined && reset) {
+            //Display current word + previously generated text to pane
+            display_text = generatedText + " " + currentWord;
+            setGeneratedText(display_text);
+            //Set to receive next series of words
+            let values = []
+            let sentence = ""
+            
+            //Change keys based on the model - use currentWord as key for bi-gram, the last word + currentWord for tri-gram, and the last two words + currentWord for the tetra-gram
+            if (modelType === "Bi-gram"){
+                //Get values via currentWord
+                values = nGramDict[currentWord];
+                //The key is simply the current word
+                setKey(currentWord)
+            } else if (modelType === "Tri-gram") {
+                //Get last word
+                sentence = generatedText.trim().split(" ");
+                const last_word = sentence[sentence.length - 1]
+                //Use as key
+                const local_key = last_word + " " + currentWord
+                //Get values
+                values = nGramDict[local_key.trim()]
+                //Set key
+                setKey(local_key);
+            } else if (modelType === "Tetra-gram") {
+                //Get last two words
+                sentence = generatedText.trim().split(" ");
+                let last_word_2 = sentence[sentence.length - 2];
+                let last_word_1 = sentence[sentence.length - 1];
+                //If either is currently undefined, simply set to a blank space
+                if (last_word_2 === undefined) {last_word_2 = "";}
+                if (last_word_1 === undefined) {last_word_1 = "";}
+                //Use as key
+                const local_key = last_word_2 + " " + last_word_1 + " " + currentWord;
+                //Get values
+                values = nGramDict[local_key.trim()]
+                //Set key
+                setKey(local_key)
+            }
+            //Check if values is undefined. If so, notify the user that the end of the chain has been reached
+            if (values === undefined) {
+                setWordOptions(["End of chain"])
+            } else {
+                const new_words = [...values];
+                //Set to word array
+                setWordOptions(new_words);
+            }
+        //If the current word is currently blank or undefined, begin definitions for the first time
+        }
+    }, [currentWord, reset])
+
+    //Manage when a word is chosen
+    const word_chosen = (button_element) => {
+        //Check iterations - if the wordCount number of iterations have passed, set the word options to complete.
+        //Get the chosen word
+        const chosen_word = button_element.target.textContent.replace("<PERIOD>", ".").replace("<EXCL>", "!").replace("<Q>", "?").trim()
+        console.log("CHOSEN WORD:", chosen_word);
+        //Set 
+        setCurrentWord(chosen_word);
     }
 
     return (
@@ -155,7 +259,7 @@ export default function GeneratePassage(props){
                             ))}
                             </div>
                         </div>
-                        <ManualTextOptions enableNextWord = {enableNextWord}/>
+                        <ManualTextOptions word_chosen = {word_chosen}/>
                     </div>
                     
                 )}

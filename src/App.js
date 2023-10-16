@@ -27,8 +27,9 @@ export default function App() {
         "<div id = 'root_div' className = 'about_page' class = 'flex flex-col h-screen w-screen items-center justify-center py-8'>"+
           "<div className = 'application' class = 'flex flex-col h-full w-11/12 text-left divide-y divide-solid'>"+
             "<div className = 'header-text' class = 'text-2xl font-bold'><strong>About -  Markov Chain Demo.</strong></div>"+
-            "<div className = 'about-page'>Developed by Dr. David S. Touretzky (Carnegie Mellon University) and Aditya Dewan (The Woodlands Secondary School) (equal contribution).</div>"+
+            "<div className = 'about-page'>Developed by Aditya Dewan (The Woodlands Secondary School) and Dr. David Touretzky (Carnegie Mellon University) (equal contribution).</div>"+
             "<div>This work was funded by National Science Foundation award IIS-2112633.</div>"+
+            "<div>All code can be found here: https://github.com/touretzkyds/MarkovChainDemo</div>"+
           "</div>"+
         "</div>"
       )

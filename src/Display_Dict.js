@@ -26,27 +26,15 @@ function DisplayDict() {
                 //Set a counter
                 let num_entries = 0;
                 //Set a RegEx to match the key (more efficient for larger dictionaries)
-                console.log("KEY:", key);
                 //Add backslash to key in case it is a special character
                 let regex_key = key;
                 if (key.includes("?") || key.includes("!") || key.includes(".")) {
                     regex_key = "\\" + key
-                }
-                const regex = new RegExp(regex_key, "g");
-                
+                }                
                 //Check the number of matches in the inputText string
                 filtered_words.forEach(value => {
                     if (value === key) {num_entries++;}
                 })
-
-                // for (const valuesList of Object.values(nGramDict)) {
-                //     //Iterate over all values in the value dictionary
-                //     valuesList.forEach((value) => {
-                //         //If a match is present, increase the count
-                //         if (value.match(regex)) {num_entries += value.match(regex).length;}
-                //     })
-                // }
-                console.log("Number found:", num_entries);
                 //Store the final count in the frequencies dictionary
                 store_frequencies[key] = num_entries;
             })
@@ -63,7 +51,6 @@ function DisplayDict() {
     const save_dictionary = () => {
         //Conver to JSON
         const json_obj = JSON.stringify(nGramDict);
-        console.log("JSON OBJECT", json_obj)
         //Blob
         const blob = new Blob([json_obj], {type : "application/json"});
         //Download URL
@@ -84,7 +71,7 @@ function DisplayDict() {
             <div className = "panel-2-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
                 <div className = "gen-dict-label" class = "flex-auto text-left justify-start monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs w-3/12 text-lg font-bold">[2] {modelType} Dictionary.</div>
                 <div className = "stat-display" class = "flex flex-grow align-center items-center w-5/12 h-4/6 bg-white outline outline-2 outline-green-900 rounded-md">
-                    <div className = "stat_display" class = "flex-auto monitor:text-sm 2xl:text-base xl:text-xs sm:text-xs text-green-900 overflow-x-auto overflow-y-auto overflow-x"><strong>Number of Entries: </strong>{lenDict}, <strong>Branching Factor: </strong>{branchingFactor} </div>
+                    <div className = "stat_display" class = "flex-auto monitor:text-sm 2xl:text-xs xl:text-xs sm:text-xs text-green-900 overflow-x-auto overflow-y-auto overflow-x"><strong>Number of Entries: </strong>{lenDict}, <strong>Branching Factor: </strong>{branchingFactor} </div>
                 </div>
                 <button className = "build-ngram-dict" onClick = {save_dictionary} class = "flex-auto monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs bg-black text-white font-bold rounded-md w-1 h-10 outline outline-1 hover:bg-slate-700 hover:ring">Save</button>
             </div>

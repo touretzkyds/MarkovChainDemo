@@ -186,6 +186,8 @@ export const DictContextProvider = ({ children }) => {
     const [wordCount, setWordCount] = useState(100);
     //Mode of text generation
     const [textGenMode, setTextGenMode] = useState("automatic");
+    //For automatic visualizations
+    const [autoGraphAllowed, setAutoGraphAllowed] = useState(true);
     //Current word, key, and word options for manual text generation
     const [currentWord, setCurrentWord] = useState("")
     const [key, setKey] = useState("")
@@ -194,6 +196,7 @@ export const DictContextProvider = ({ children }) => {
     const [keysAdded, setKeysAdded] = useState([]);
     const [enableNextWord, setEnableNextWord] = useState(false);
     const [clearButtonClicked, setClearButtonClicked] = useState(false);
+
 
 
     // ======== ALL PREPROCESSING FUNCTIONS (REFACTORED INTO JSX FROM PYTHON) ========
@@ -527,6 +530,8 @@ export const DictContextProvider = ({ children }) => {
             setWordCount,
             textGenMode,
             setTextGenMode,
+            autoGraphAllowed,
+            setAutoGraphAllowed,
             currentWord,
             setCurrentWord,
             key,

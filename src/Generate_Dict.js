@@ -2,6 +2,8 @@ import React, {useState, useEffect} from "react";
 import ReactDOM from 'react-dom';
 import axios from "axios";
 import { useDictContext } from "./Context";
+import Modal from "react-modal";
+import WikipediaImport from "./WikipediaImport"
 
 export default function GenerateDict(props){
     //Get dictionary, branching factor, and number of bigrams from context manager
@@ -13,6 +15,9 @@ export default function GenerateDict(props){
     let [validText, setValidText] = useState(true);
     //Dictionary generated state
     let {dictGenerated, setDictGenerated} = props;
+
+    //Track whether the Wikipedia pop-up is open or not
+    const [wikiOpen, setWikiOpen] = useState(false);
 
     //When text is entered into the textarea
     const textRetrieval = (text) => {
@@ -66,19 +71,37 @@ export default function GenerateDict(props){
         }
     }, [nGramDict, modelType, wordCount])
 
+    //Open Wikipedia popup
+    const open_wiki_popup = () => {
+        setWikiOpen(true);
+    }
+
+    //Close Wikipedia popup
+    const close_wiki_popup = () => {
+        setWikiOpen(false);
+    }
+
     //HTML
     return (
         <div className = "text-processing" class = "flex flex-col space-y-2 h-full w-full items-center justify-center rounded-md bg-zinc-50 drop-shadow-md" >
             <div className = "panel-1-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-2">
-                <p className = "text-entrance-text" class = "flex-auto monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs font-bold w-4/12">[1] Provide a Passage; Choose a Model.</p>
-                    <div className = "n-gram-selection" class = "flex-auto flex-col w-1/6 align-center text-center items-center justify-center">
-                        <label class = "text-center monitor:text-sm 2xl:text-sm xl:text-sm sm:text-xs">Select model type:</label>
-                        <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = {modelType} onChange = {modelSelect} class = "flex-auto mx-auto block align-center items-center justify-center h-fit w-8/12 monitor:text-sm 2xl:text-sm xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center">
-                            <option key = "Bi-gram">Bi-gram</option>
-                            <option key = "Tri-gram">Tri-gram</option>
-                            <option key = "Tetra-gram">Tetra-gram</option>
-                        </select>
-                    </div>
+                <div className = "header-and-import" class = "flex-auto flex-col w-4/12">
+                    <p className = "text-entrance-text" class = "flex-auto monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs font-bold">[1] Provide a Passage; Choose a Model.</p>
+                    <button className = "import-from-wiki" onClick = {open_wiki_popup} class = "font-bold text-green-900 monitor:text-sm 2xl:text-sm xl:text-xs sm:text-xs">Import from Wikipeda.</button>
+                    <WikipediaImport 
+                        isOpen = {wikiOpen}
+                        onRequestClose = {close_wiki_popup}
+                        content ={<div>This is the Wikipedia Popup. Under Construction! Search:</div>}
+                    />               
+                </div>
+                <div className = "n-gram-selection" class = "flex-auto flex-col w-1/6 align-center text-center items-center justify-center">
+                    <label class = "text-center monitor:text-sm 2xl:text-sm xl:text-sm sm:text-xs">Select model type:</label>
+                    <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = {modelType} onChange = {modelSelect} class = "flex-auto mx-auto block align-center items-center justify-center h-fit w-8/12 monitor:text-sm 2xl:text-sm xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center">
+                        <option key = "Bi-gram">Bi-gram</option>
+                        <option key = "Tri-gram">Tri-gram</option>
+                        <option key = "Tetra-gram">Tetra-gram</option>
+                    </select>
+                </div>
                 { enableButton ? (
                     <button className = "build-ngram-dict" onClick = {rebuild_dict_clicked} class = "flex-auto monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs bg-black text-white font-bold rounded-md w-2/12 h-10 outline outline-1 hover:bg-slate-700 hover:ring">Re-Build Dictionary</button>
                 ) : (
