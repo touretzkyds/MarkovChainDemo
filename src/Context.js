@@ -183,7 +183,7 @@ export const DictContextProvider = ({ children }) => {
     //Set Text Generation Variables
     const [generatedText, setGeneratedText] = useState("");
     //Set word count
-    const [wordCount, setWordCount] = useState(100);
+    const [wordCount, setWordCount] = useState(5);
     //Mode of text generation
     const [textGenMode, setTextGenMode] = useState("automatic");
     //For automatic visualizations

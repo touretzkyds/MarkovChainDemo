@@ -124,8 +124,12 @@ export default function GeneratePassage(props){
     useEffect(() => {
         if (currentWord !== "" && currentWord !== undefined && reset) {
             //Display current word + previously generated text to pane
-            display_text = generatedText + " " + currentWord;
-            setGeneratedText(display_text);
+            //Do this only if in manual text generation mode
+            if (textGenMode === "manual") {
+                display_text = generatedText + " " + currentWord;   
+                setGeneratedText(display_text);
+            }
+
             //Set to receive next series of words
             let values = []
             let sentence = ""
