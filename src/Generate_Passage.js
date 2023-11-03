@@ -57,15 +57,13 @@ export default function GeneratePassage(props){
 
     //When the clear button is clicked
     const clear_button_clicked = () => {
-        // setGeneratedText("");
+
         setClearButtonClicked(true);
-        setGeneratedText("");
-        setKeysAdded([]);
         //Clear the current pane
         setGeneratedText("");
         setKeysAdded([]);
         //Clear all values
-        setKey("")
+        setKey("");
         setWordOptions([])
         setCurrentWord("")
         // display_text = "";
@@ -105,7 +103,6 @@ export default function GeneratePassage(props){
     //Check whether the display pane has been reset
     useEffect(() => {
         if (generatedText === "" && key === "" && wordOptions.length === 0 && currentWord === "") {
-            console.log("SUCCESSFULLY RESET.")
             setReset(true);
         }
     }, [generatedText, key, wordOptions, currentWord])
@@ -248,7 +245,7 @@ export default function GeneratePassage(props){
                                 //Display word and add a space if not at the final word
                                 //If encountering a bi-gram model, highlight the final word. If working with a tri-gram model, highlight the last two words. If working with a tetra-gram model, highlight the last three words.
                                 <div key = {index} class = "inline">
-                                    {modelType === "Bi-gram" ? index >= generatedText.split(" ").length - 1 ? 
+                                {modelType === "Bi-gram" ? index >= generatedText.split(" ").length - 1 ? 
                                     <li class = "inline list-none text-green-900">{word.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}</li> : 
                                     <li class = "inline list-none">{word.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}</li> : null}
                                 {modelType === "Tri-gram" ? index >= generatedText.split(" ").length - 2? 

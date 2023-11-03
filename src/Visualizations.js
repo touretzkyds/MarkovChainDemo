@@ -43,9 +43,9 @@ export default function Visualizations(props) {
     const [pendingNodesAdded, setPendingNodesAdded] = useState(false);
 
     //Flag to allow or disable backwards connections (prevents drawing multiple connections per repetition)
-    let biBackwardsCnxAllowed = false;
+    const [biBackwardsCnxAllowed, setBiBackwardsCnxAllowed] = useState(false);
     //Flag to ensure that tri-and-tetra-gram models are only adding single connections between nodes at a time (again to prevent multiple re-draws)
-    let triTetraCnxAllowed = false;
+    const [triTetraCnxAllowed, setTriTetraCnxAllowed] = useState(false);
 
     //Set current reference of graph div to null
     let graphRef = React.useRef(null);
@@ -54,7 +54,7 @@ export default function Visualizations(props) {
     const [manualText, setManualText] = useState("");
 
     //Create a counter variable to track (for automatic text generation mode) what word of generatedText is currently being rendered on the graph
-    let genCounter = 0;
+    const [genCounter, setGenCounter] = useState(0);
 
     //A flag to determine whether all non-key wordOptions for the previous keys have been removed
     let prevKeyOptionsRemoved = true;
@@ -118,14 +118,14 @@ export default function Visualizations(props) {
         setAutoGraphRendered(false);
 
         //Set Bi-gram backwards connection and Tri-and-Tetra-gram branch connection modulating flags to false
-        biBackwardsCnxAllowed = false;
-        triTetraCnxAllowed = false;
+        setBiBackwardsCnxAllowed(false);
+        setTriTetraCnxAllowed(false);
 
         //If we are in manual mode, set the manual text to be blank
         if (textGenMode === "manual") {setManualText("")};
 
         //Set the automatic text counter to zero
-        genCounter = 0;
+        setGenCounter(0);
         
     }
 
@@ -135,13 +135,46 @@ export default function Visualizations(props) {
         resetGraph();
     }, [textGenMode, modelType, nGramDict])
 
+    useEffect(() => {
+        resetGraph();
+        buildGraph();
+        setLayout({
+            name: layoutName,
+            fit: true,
+            rankDir: "LR",
+            directed: false,
+            circle: true,
+            // grid: false,
+            avoidOverlap: true,
+            spacingFactor: 1.5 + Math.random() * (1.8 - 1.5),
+            nodeDimensionsIncludeLabels: true,
+            animate: true,
+            gravity : 1,
+            randomize: false,
+            ready: true,
+            stop: true,
+            klay : {
+                addUnnecessaryBendpoints: false,
+                mergeHierarchyCrossingEdges: false,
+                direction : "RIGHT",
+                // crossingMinimization: "INTERACTIVE",
+                feedbackEdges: true,
+                mergeEdges : true,
+                //nodePlacement : "LINEAR_SEGMENTS"
+            }
+        });
+    }, [modelType]);
+
     //Also reset the graph if the mode of generation is automatic and the generated text contant has changed
     useEffect(() => {
         if (textGenMode === "automatic") {resetGraph();}
     }, [generatedText])
     //Reset the graph additionally when the clear button in pane three has been clicked - this is only possible for manual text generation mode, but the execution is identical
     useEffect(() => {
-        if (clearButtonClicked) {resetGraph()};
+        if (clearButtonClicked) {
+            resetGraph();
+            setClearButtonClicked(false);
+        }
     }, [clearButtonClicked])
 
     //If the layout has not been yet defined or built, and the graph is currently empty, set the reset flag to true - all variables are now at their default position
@@ -156,9 +189,9 @@ export default function Visualizations(props) {
 
     //A function to build the next node of a graph, assuming that a starting key is present
     const buildGraph = () => {
-        
+        console.log("KEY:", key);
         //If the key is not already present on the graph, add it
-        if (!nodesAdded.includes(key)) { 
+        if (!nodesAdded.includes(key) && !key.split(" ").includes("undefined")) { 
             //Create new data point
             let newGraphPoint = {data : {id : key, label : key.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}, position : { x:Math.random() * 100 + 50, y: Math.random() * 100 + 50}};
             //Add point to the graph
@@ -168,43 +201,49 @@ export default function Visualizations(props) {
         }
 
         //Check to see if the current key has been duplicated previously - if so, we must add a seperate backwards connection after adding regular connections.
-        const nDuplicateKeys = keysAdded.filter((graph_key) => (graph_key === key)).length - 1;
+        const nDuplicateKeys = keysAdded.filter((graph_key) => (graph_key === key)).length;
 
         //React sometimes renders windows multiple times. To prevent multiple renders from adding multiple nodes, ensure that two identical consecutive nodes cannot be placed
         //In other words - when tracking keys in the list of current keys, verify that the previous one is not identical to the current one
         //Verify that the previous key is not identical to the current key
-        if (keysAdded.length < 1) {setKeysAdded(existingKeys => [...existingKeys, key]);}
-        else if (keysAdded[keysAdded.length - 1] !== key) {setKeysAdded(existingKeys => [...existingKeys, key]);}
+        if (keysAdded.length < 1 && !key.split(" ").includes("undefined")) {setKeysAdded(existingKeys => [...existingKeys, key]);}
+        else if (keysAdded[keysAdded.length - 1] !== key && !key.split(" ").includes("undefined")) {setKeysAdded(existingKeys => [...existingKeys, key]);}
 
         //Tri-and-Tetra-gram models should always add a branch between the previous and current key
         //This should be done ONCE per key change (thus, employ the flag)
         //Verify that the current key is NOT a duplicate of the previous (otherwise no connection is needed nor possible)
-
+        // console.log("CONNECTION ALLOWED:", triTetraCnxAllowed);
+        // console.log("NUMBER OF DUPLICATE KEYS:", nDuplicateKeys);
+        // console.log("KEYS ADDED LENGTH:", keysAdded.length);
         if ((modelType === "Tri-gram" || modelType === "Tetra-gram") && triTetraCnxAllowed && nDuplicateKeys < 1) {
             //Establish branch connection between previous and current key
+            //console.log("ADDING BRANCH");
             let newTriTetraBranch = {data : {source : keysAdded[keysAdded.length - 2], target : key, label : keysAdded[keysAdded.length - 2] + key}};
+            //console.log("BRANCH ADDED:", newTriTetraBranch);
             //Add new branch to existing graph
             setGraphData(existingGraph => [...existingGraph, newTriTetraBranch]);
             //Disable additional branches between nodes. This is re-enabled once the key changes and exists to prevent adding identical branches multiple times.
-            triTetraCnxAllowed = false;
+            setTriTetraCnxAllowed(false);
         }
 
         //If duplicates are present add a backwards connection between the current key and the previous one
         //Verify that backwards connections are allowed
         if (nDuplicateKeys >= 1 && biBackwardsCnxAllowed) {
             //Create backwards connection branch
-            let backwardsCnxBranch = {data : {source : keysAdded[keysAdded.length - 2], target : key, label : keysAdded[keysAdded.length - 2] + key + "BackwardsCnx"}};
+            let backwardsCnxBranch = {data : {source : keysAdded[keysAdded.length - 1], target : key, label : keysAdded[keysAdded.length - 2] + key + "BackwardsCnx"}};
+            
             //Add to graph
             setGraphData(existingGraph => [...existingGraph, backwardsCnxBranch]);
             //Disable future backwards connections until a new key is added
-            biBackwardsCnxAllowed = false;
+            setBiBackwardsCnxAllowed(false);
         }
-        console.log("CURRENT KEY WORD:", key);
+        
         //Iterate through all potential selection options (child nodes) for this key and add to the graph
         //Do this only if not the final word in the sentence. If this is the last word, simply add another node that states "END OF CHAIN".
-        if (generatedText.split(" ")[generatedText.split(" ").length - 1] !== key) {
+        // console.log("KEY", key);
+        if (generatedText.split(" ").length > genCounter) {
+            // console.log("GENERATED WORD OPTIONS:", wordOptions);
             wordOptions.forEach(word => {
-                console.log("WORD CNX BEING DRAWN TO:", word)
                 //Verify that the respective node is not already present on the graph
                 if (!nodesAdded.includes(word)) {
     
@@ -259,10 +298,11 @@ export default function Visualizations(props) {
 
     }
 
+
+    //A function to re-render the layout each time data population is complete (the graph has been rendered once; re-apply with the layout and try again)
     useEffect(() => {
         if (graphReRendered) {
             // buildGraph();
-            console.log("WORKING")
             setLayout({
                 name: layoutName,
                 fit: true,
@@ -425,14 +465,8 @@ export default function Visualizations(props) {
                     //nodePlacement : "LINEAR_SEGMENTS"
                 }
             });
-            // //Previous opts not yet removed - do 
-            // setPrevWordOpsRemoved(false);
         }
-    }, [isReset, key, wordOptions, currentWord])
-
-    // useEffect(() => {
-    //     console.log("PREVIOUS WORD OPT SETTINGS:", prevWordOpsRemoved);
-    // }, [prevWordOpsRemoved])
+    }, [isReset, key, wordOptions])
 
     //Each time the graph changes state, re-colour
     useEffect(() => {
@@ -443,10 +477,10 @@ export default function Visualizations(props) {
     useEffect(() => {
 
         //Set both flags to true
-        biBackwardsCnxAllowed = true;
-        triTetraCnxAllowed = true;
+        setBiBackwardsCnxAllowed(true);
+        setTriTetraCnxAllowed(true);
 
-    }, [currentWord])
+    }, [keysAdded])
 
     useEffect(() => {
         //Delete previous wordOptions if the graph has been rendered and the current word / keys added have changed
@@ -456,9 +490,6 @@ export default function Visualizations(props) {
         
     }, [currentWord, keysAdded])
     
-    // useEffect(() => {
-    //     console.log("THE CURRENT WORD IS:", currentWord);
-    // }, [currentWord])
     //Check for when the layout is no longer undefined (that is, it has been rendered) and update accordingly
     useEffect(() => {
         if (layout !== undefined) {
@@ -479,7 +510,9 @@ export default function Visualizations(props) {
                 //Set currentWord to the word of generated text located at index genCounter
                 setCurrentWord(generatedText.split(" ")[genCounter].replace("<PERIOD>", ".").replace("<EXCL>", "!").replace("<Q>", "?").trim());
                 //Increment counter
-                genCounter++;
+                const setValue = genCounter + 1;
+                setGenCounter(setValue);
+                
                 //Otherwise, clear the interval
             } else {clearInterval(wordSelectionInterval);}
         }, 1000);
@@ -487,13 +520,13 @@ export default function Visualizations(props) {
         //Clear interval when finished
         return () => clearInterval(wordSelectionInterval);
         
-    }, [textGenMode, isReset, generatedText]) 
+    }, [textGenMode, isReset, generatedText, genCounter]) 
 
     //When the generated text changes, set the counter back to zero
     useEffect(() => {
         //Do so as long as the mode of generation is automatic
         if (textGenMode === "automatic") {
-            genCounter = 0;
+            setGenCounter(0);
         }
     }, [generatedText, textGenMode])
 

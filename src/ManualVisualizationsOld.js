@@ -123,7 +123,6 @@ export default function ManualVisualizations() {
         })
     }
 
-
     //Build manual graph
     const buildManualGraph = () => {
 
@@ -143,9 +142,10 @@ export default function ManualVisualizations() {
             //Add to collection of nodesAdded
             addNodes(key);
         }
-
+    
         //Check to see if there are any duplicates of the current key present
-        const n_duplicate_keys = keysAdded.filter((graph_key) => (graph_key === word_key)).length - 1
+        const n_duplicate_keys = keysAdded.COSEBilkent2
+        .filter((graph_key) => (graph_key === word_key)).length - 1
 
         //For Tri-and-Tetra-Gram models, add a branch between the previous key and the current key
         //Do so once per key change
