@@ -190,6 +190,8 @@ export const DictContextProvider = ({ children }) => {
     const [autoGraphAllowed, setAutoGraphAllowed] = useState(true);
     //Current word, key, and word options for manual text generation
     const [currentWord, setCurrentWord] = useState("")
+    //To keep track of the position of the current word
+    const [currentWordCounter, setCurrentWordCounter] = useState(0);
     const [key, setKey] = useState("")
     const [wordOptions, setWordOptions] = useState([])
     //Keep track of nodes that have been added to the manual visualization graph (all selected)
@@ -534,6 +536,8 @@ export const DictContextProvider = ({ children }) => {
             setAutoGraphAllowed,
             currentWord,
             setCurrentWord,
+            currentWordCounter,
+            setCurrentWordCounter,
             key,
             setKey,
             wordOptions,

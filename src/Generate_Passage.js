@@ -7,7 +7,7 @@ import ManualTextOptions from "./ManualTextOptions";
 export default function GeneratePassage(props){
     //Get user ID and other helper variables from context
     //In particular, leverage nodesAdded rather than generatedText to display iteratively and higlight keys in automatic generation mode
-    const {nGramDict, currentWord, modelType, autoGraphAllowed, setAutoGraphAllowed, generatedText, setGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, key, setKey, setWordCount, textGenMode, setTextGenMode, enableNextWord, setEnableNextWord, setKeysAdded, generate_text, clearButtonClicked, setClearButtonClicked} = useDictContext();
+    const {nGramDict, currentWord, modelType, autoGraphAllowed, setAutoGraphAllowed, generatedText, setGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, key, setKey, setWordCount, textGenMode, setTextGenMode, enableNextWord, setEnableNextWord, setKeysAdded, generate_text, clearButtonClicked, setClearButtonClicked, currentWordCounter, setCurrentWordCounter} = useDictContext();
     //Enable next word selection panel
     // const [enableNextWord, setEnableNextWord] = useState(false);
     //Keep track for the switch whether the mode of generation is automatic or not
@@ -86,7 +86,9 @@ export default function GeneratePassage(props){
     //Choose a word - set the chosen word as the current word, and update wordOptions with new values
     //Each time the enable boolean is altered, check to validate start
     useEffect(() => {
+        console.log("CURRENT WORD BEING SET TO ZERO");
         setReset(false);
+        setCurrentWordCounter(0);
         //Verify manual text generation is enabled
         if (enableNextWord) {
             //Clear the current pane
@@ -100,9 +102,11 @@ export default function GeneratePassage(props){
         }
     }, [enableNextWord, modelType])
 
-    //Check whether the display pane has been reset
+    //Check whether the display pane has been reset 
     useEffect(() => {
-        if (generatedText === "" && key === "" && wordOptions.length === 0 && currentWord === "") {
+        if (textGenMode === "manual" && generatedText === "" && key === "" && wordOptions.length === 0 && currentWord === "") {
+            setReset(true);
+        } else if (textGenMode === "automatic" && key === "" && wordOptions.length === 0 && currentWord === "") {
             setReset(true);
         }
     }, [generatedText, key, wordOptions, currentWord])
@@ -138,37 +142,41 @@ export default function GeneratePassage(props){
                 //The key is simply the current word
                 setKey(currentWord)
             } else if (modelType === "Tri-gram") {
-                //Get last word
-                sentence = generatedText.trim().split(" ");
-                const last_word = sentence[sentence.length - 1]
-                //Use as key
-                const local_key = last_word + " " + currentWord
-                //Get values
-                values = nGramDict[local_key.trim()]
-                //Set key
-                setKey(local_key);
+                //If we have passed the maximum viable word, set values to null
+                if (currentWordCounter > generatedText.split(" ").length - 2) {values = undefined;}
+                else {
+                    //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
+                    const local_key = generatedText.trim().split(" ").slice(currentWordCounter, currentWordCounter + 2).toString().replace(",", " ");
+                    console.log("TRI-GRAM KEY:", local_key);
+                    //Get values
+                    values = nGramDict[local_key.trim()];
+                    //Set key
+                    setKey(local_key);
+                }
             } else if (modelType === "Tetra-gram") {
-                //Get last two words
-                sentence = generatedText.trim().split(" ");
-                let last_word_2 = sentence[sentence.length - 2];
-                let last_word_1 = sentence[sentence.length - 1];
-                //If either is currently undefined, simply set to a blank space
-                if (last_word_2 === undefined) {last_word_2 = "";}
-                if (last_word_1 === undefined) {last_word_1 = "";}
-                //Use as key
-                const local_key = last_word_2 + " " + last_word_1 + " " + currentWord;
-                //Get values
-                values = nGramDict[local_key.trim()]
-                //Set key
-                setKey(local_key)
+                //If we have passed the third last word, set values to null (as we must look two words ahead, for a total of three words per key)
+                if (currentWordCounter > generatedText.split(" ").length - 3) {values = undefined;}
+                else {
+                    //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
+                    const local_key = generatedText.trim().split(" ").slice(currentWordCounter, currentWordCounter + 3).toString().replace(",", " ");
+                    console.log("TETRA-GRAM KEY:", local_key);
+                    //Get values
+                    values = nGramDict[local_key.trim()];
+                    //Set key
+                    setKey(local_key);
+                }
             }
             //Check if values is undefined. If so, notify the user that the end of the chain has been reached
             if (values === undefined) {
                 setWordOptions(["End of chain"])
             } else {
+                console.log("WORD COUNTER BEING UPDATED.")
                 const new_words = [...values];
                 //Set to word array
                 setWordOptions(new_words);
+                //Increment index of current word
+                const currentWordIndex = currentWordCounter;
+                setCurrentWordCounter(currentWordIndex + 1);
             }
         //If the current word is currently blank or undefined, begin definitions for the first time
         }
@@ -179,7 +187,6 @@ export default function GeneratePassage(props){
         //Check iterations - if the wordCount number of iterations have passed, set the word options to complete.
         //Get the chosen word
         const chosen_word = button_element.target.textContent.replace("<PERIOD>", ".").replace("<EXCL>", "!").replace("<Q>", "?").trim()
-        console.log("CHOSEN WORD:", chosen_word);
         //Set 
         setCurrentWord(chosen_word);
     }
