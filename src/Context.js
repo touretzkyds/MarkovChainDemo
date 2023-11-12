@@ -207,7 +207,7 @@ export const DictContextProvider = ({ children }) => {
 
     const get_words = (text_string) => {
         //Characters to be removed
-        const remove_chars = ",:;()'\n\t"
+        const remove_chars = "—,:;()'\n\t"
         //Characters to replace with a space
         const spacer_chars = ".?!"
         //Resultant characters

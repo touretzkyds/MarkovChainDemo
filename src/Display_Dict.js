@@ -77,10 +77,10 @@ function DisplayDict() {
     return (
         <div className = "dict-stat-display" class = "flex flex-col w-full h-full items-center align-center text-center justify-center rounded-md bg-zinc-50 drop-shadow-md space-y-2">
             <div className = "panel-2-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
-                <div className = "gen-dict-label" class = "flex text-left justify-start monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs text-lg font-bold space-x-1">[2] 
-                    <div className = "n-gram-selection" class = "flex-auto flex-col w-1/6 align-center text-center items-center justify-center space-y-1">
-                        <div class = "group relative w-full h-full">
-                            <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = {modelType} onChange = {modelSelect} class = "flex w-10/12 self-center mx-auto block align-center items-center justify-center monitor:text-lg 2xl:text-md xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center hover:bg-zinc-200">
+                <div className = "gen-dict-label" class = "flex text-left justify-start monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs text-lg font-bold space-x-5">[2] 
+                    <div className = "n-gram-selection" class = "flex-auto flex-col w-1/6 align-center text-center items-center justify-center space-y-1 space-x-2 ">
+                        <div class = "group relative w-full h-full pr-2 pl-2 ">
+                            <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = {modelType} onChange = {modelSelect} class = "flex w-12/12 self-center mx-auto block align-center items-center justify-center monitor:text-lg 2xl:text-md xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center hover:bg-zinc-200">
                                 <option key = "Bi-gram">Bi-gram</option>
                                 <option key = "Tri-gram">Tri-gram</option>
                                 <option key = "Tetra-gram">Tetra-gram</option>
