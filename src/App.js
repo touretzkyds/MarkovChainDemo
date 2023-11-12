@@ -21,18 +21,7 @@ export default function App() {
 
   //The About window when the respective button is clicked
   const openAboutWindow = () => {
-      const about_window = window.open('', '_blank');
-      about_window.document.title = "About - Markov Chain Demo.";
-      about_window.document.body.innerHTML = (
-        "<div id = 'root_div' className = 'about_page' class = 'flex flex-col h-screen w-screen items-center justify-center py-8'>"+
-          "<div className = 'application' class = 'flex flex-col h-full w-11/12 text-left divide-y divide-solid'>"+
-            "<div className = 'header-text' class = 'text-2xl font-bold'><strong>About -  Markov Chain Demo.</strong></div>"+
-            "<div className = 'about-page'>Developed by Aditya Dewan (The Woodlands Secondary School) and Dr. David Touretzky (Carnegie Mellon University) (equal contribution).</div>"+
-            "<div>This work was funded by National Science Foundation award IIS-2112633.</div>"+
-            "<div>All code can be found here: https://github.com/touretzkyds/MarkovChainDemo</div>"+
-          "</div>"+
-        "</div>"
-      )
+      const about_window = window.open('/about.html', '_blank');
       //Set the window to the object
       setAboutWindow(about_window);
   }

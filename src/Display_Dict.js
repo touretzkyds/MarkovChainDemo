@@ -3,9 +3,17 @@ import { useDictContext } from "./Context";
 
 function DisplayDict() {
     //Get variables from context
-    const { inputText, setInputText, nGramDict, modelType, branchingFactor, setBranchingFactor, lenDict, setLenDict, branching_factor, get_words} = useDictContext();
+    const { inputText, setInputText, nGramDict, modelType, setModelType, branchingFactor, setBranchingFactor, lenDict, setLenDict, branching_factor, get_words} = useDictContext();
     //To store frequency of words in the dictionary
     const [frequencies, setFrequencies] = useState({});
+
+    //When a model option is selected
+    const modelSelect = (selection) => {
+        //Check if the button is disabled.
+        //If so, a change should trigger the generation of a novel dictionary and text generation.
+        //Otherwise, simply update the state.
+        setModelType(selection.target.value)
+    }
 
     //Calculate branching factor, length, and word frequencies of the dictionary (if the model is a bi-gram) each time the dict changes
     useEffect(() => {
@@ -69,7 +77,23 @@ function DisplayDict() {
     return (
         <div className = "dict-stat-display" class = "flex flex-col w-full h-full items-center align-center text-center justify-center rounded-md bg-zinc-50 drop-shadow-md space-y-2">
             <div className = "panel-2-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
-                <div className = "gen-dict-label" class = "flex-auto text-left justify-start monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs w-3/12 text-lg font-bold">[2] {modelType} Dictionary.</div>
+                <div className = "gen-dict-label" class = "flex text-left justify-start monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs text-lg font-bold space-x-1">[2] 
+                    <div className = "n-gram-selection" class = "flex-auto flex-col w-1/6 align-center text-center items-center justify-center space-y-1">
+                        <div class = "group relative w-full h-full">
+                            <select name = "n-gram-model-type" id = "n-gram-model-type" defaultValue = {modelType} onChange = {modelSelect} class = "flex w-10/12 self-center mx-auto block align-center items-center justify-center monitor:text-lg 2xl:text-md xl:text-sm sm:text-xs rounded-md outline outline-slate-200 outline-3 focus:outline-none focus:ring text-center hover:bg-zinc-200">
+                                <option key = "Bi-gram">Bi-gram</option>
+                                <option key = "Tri-gram">Tri-gram</option>
+                                <option key = "Tetra-gram">Tetra-gram</option>
+                            </select>
+                            <div class = "hidden group-hover:block absolute p-1 rounded-md text-xs top-full bg-green-900 text-white">
+                                Click to select a model type.
+                            </div>
+                        </div>
+
+                        {/* <div class = "flex fixed text-center text-xs">(Select model type)</div> */}
+                    </div>
+                    Dictionary.
+                </div>
                 <div className = "stat-display" class = "flex flex-grow align-center items-center w-5/12 h-4/6 bg-white outline outline-2 outline-green-900 rounded-md">
                     <div className = "stat_display" class = "flex-auto monitor:text-sm 2xl:text-xs xl:text-xs sm:text-xs text-green-900 overflow-x-auto overflow-y-auto overflow-x"><strong>Number of Entries: </strong>{lenDict}, <strong>Branching Factor: </strong>{branchingFactor} </div>
                 </div>
