@@ -124,7 +124,7 @@ export default function GenerateDict(props){
         <div className = "text-processing" class = "flex flex-col space-y-2 h-full w-full items-center justify-center rounded-md bg-zinc-50 drop-shadow-md" >
             <div className = "panel-1-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-2">
                 <div className = "header-and-import" class = "flex-auto flex-col w-6/12 space-y-2">
-                    <div className = "text-entrance-text" class = "flex h-2/3 monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs font-bold">[1] Paste in Text, Import from Wikipedia.</div>
+                    <div className = "text-entrance-text" class = "flex h-2/3 monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs font-bold">[1] Paste in Text or Import from Wikipedia.</div>
                     <div className = "button-options" class = "flex flex-row w-full h-full space-x-2">
                         { enableButton ? (
                             <button className = "build-ngram-dict" onClick = {rebuild_dict_clicked} class = "flex-auto w-9/12 bg-black text-white font-bold rounded-md outline outline-1 hover:bg-slate-700 hover:ring monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Re-Build Dictionary</button>
