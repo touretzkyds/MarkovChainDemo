@@ -21,10 +21,11 @@ export default function App() {
 
   //The About window when the respective button is clicked
   const openAboutWindow = () => {
-      const about_window = window.open('/about.html', '_blank');
-      //Set the window to the object
-      setAboutWindow(about_window);
-  }
+    const aboutPath = `${process.env.PUBLIC_URL}/about.html`;
+    const about_window = window.open(aboutPath, '_blank');
+    // Set the window to the object
+    setAboutWindow(about_window);
+  };
 
   return (
     <DictContextProvider>

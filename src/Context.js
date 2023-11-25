@@ -321,8 +321,9 @@ export const DictContextProvider = ({ children }) => {
     const branching_factor = (dict) => {
         //Get lengths of each key
         const key_lengths = Object.keys(dict).map(function(key) {return dict[key].length;});
-        //Sum and divide by number of keys
-        return Math.round((key_lengths.reduce(function(a, b) {return a + b;}, 0) / Object.keys(dict).length + Number.EPSILON) * 1000) / 1000;
+        //Sum and divide by number of keys - account for if the length of the keys is zero
+        
+        return key_lengths != 0 ? Math.round((key_lengths.reduce(function(a, b) {return a + b;}, 0) / Object.keys(dict).length + Number.EPSILON) * 1000) / 1000 : 0;
     }   
 
     //Generate bigram text

@@ -147,7 +147,6 @@ export default function GeneratePassage(props){
                 else {
                     //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
                     const local_key = generatedText.trim().split(" ").slice(currentWordCounter, currentWordCounter + 2).toString().replace(",", " ");
-                    console.log("TRI-GRAM KEY:", local_key);
                     //Get values
                     values = nGramDict[local_key.trim()];
                     //Set key
