@@ -36,6 +36,8 @@ export default function GeneratePassage(props){
             setEnableNextWord(true);
             //Set generation mode to manual
             setTextGenMode("manual")
+            //Log
+            console.log("Entering manual text generation mode.");
         }
         //Set generatedText to "" each time the mode has changed, as well as the nodes added array
         setGeneratedText("");
@@ -66,12 +68,14 @@ export default function GeneratePassage(props){
         setKey("");
         setWordOptions([])
         setCurrentWord("")
-        // display_text = "";
+        display_text = "";
 
         //Randomly select a word to begin with
         const dict_keys = Object.keys(nGramDict);
         const start_word = dict_keys[Math.floor(Math.random() * dict_keys.length)];
         setCurrentWord(start_word);
+        setReset(true);
+        setCurrentWordCounter(0);
         
     }
 
@@ -86,7 +90,6 @@ export default function GeneratePassage(props){
     //Choose a word - set the chosen word as the current word, and update wordOptions with new values
     //Each time the enable boolean is altered, check to validate start
     useEffect(() => {
-        console.log("CURRENT WORD BEING SET TO ZERO");
         setReset(false);
         setCurrentWordCounter(0);
         //Verify manual text generation is enabled
@@ -118,8 +121,9 @@ export default function GeneratePassage(props){
             const dict_keys = Object.keys(nGramDict);
             const start_word = dict_keys[Math.floor(Math.random() * dict_keys.length)];
             setCurrentWord(start_word);
+            
         }
-    }, [reset])
+    }, [reset, textGenMode])
 
     //Each time the currentWord is updated, generate a new selection of words
     useEffect(() => {
@@ -133,7 +137,6 @@ export default function GeneratePassage(props){
 
             //Set to receive next series of words
             let values = []
-            let sentence = ""
             
             //Change keys based on the model - use currentWord as key for bi-gram, the last word + currentWord for tri-gram, and the last two words + currentWord for the tetra-gram
             if (modelType === "Bi-gram"){
@@ -141,35 +144,40 @@ export default function GeneratePassage(props){
                 values = nGramDict[currentWord];
                 //The key is simply the current word
                 setKey(currentWord)
+
             } else if (modelType === "Tri-gram") {
+
                 //If we have passed the maximum viable word, set values to null
-                if (currentWordCounter > generatedText.split(" ").length - 2) {values = undefined;}
+                if (currentWordCounter > display_text.trim().split(" ").length - 2) {values = undefined;}
+
                 else {
                     //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
-                    const local_key = generatedText.trim().split(" ").slice(currentWordCounter, currentWordCounter + 2).toString().replace(",", " ");
+                    const local_key = display_text.trim().split(" ").slice(currentWordCounter, currentWordCounter + 2).toString().replace(",", " ");
                     //Get values
                     values = nGramDict[local_key.trim()];
                     //Set key
                     setKey(local_key);
                 }
+
             } else if (modelType === "Tetra-gram") {
+
                 //If we have passed the third last word, set values to null (as we must look two words ahead, for a total of three words per key)
-                if (currentWordCounter > generatedText.split(" ").length - 3) {values = undefined;}
+                if (currentWordCounter > display_text.trim().split(" ").length - 3) {values = undefined;}
+
                 else {
                     //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
-                    const local_key = generatedText.trim().split(" ").slice(currentWordCounter, currentWordCounter + 3).toString().replace(",", " ");
-                    console.log("TETRA-GRAM KEY:", local_key);
+                    const local_key = display_text.trim().split(" ").slice(currentWordCounter, currentWordCounter + 3).toString().replace(",", " ").replace(",", " ");
                     //Get values
                     values = nGramDict[local_key.trim()];
                     //Set key
                     setKey(local_key);
                 }
+
             }
             //Check if values is undefined. If so, notify the user that the end of the chain has been reached
             if (values === undefined) {
                 setWordOptions(["End of chain"])
             } else {
-                console.log("WORD COUNTER BEING UPDATED.")
                 const new_words = [...values];
                 //Set to word array
                 setWordOptions(new_words);

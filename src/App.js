@@ -21,9 +21,9 @@ export default function App() {
 
   //The About window when the respective button is clicked
   const openAboutWindow = () => {
-    const aboutPath = `${process.env.PUBLIC_URL}/about.html`;
+    const aboutPath = `${window.location.origin}${process.env.PUBLIC_URL}/about.html`;
     const about_window = window.open(aboutPath, '_blank');
-    // Set the window to the object
+    // Set the window to the object   
     setAboutWindow(about_window);
   };
 

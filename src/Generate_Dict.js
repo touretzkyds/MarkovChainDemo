@@ -4,9 +4,24 @@ import axios from "axios";
 import { useDictContext } from "./Context";
 
 function removeHtmlTags(htmlString) {
-    var doc = new DOMParser().parseFromString(htmlString, 'text/html');
-    return doc.body.textContent || "";
+    const doc = new DOMParser().parseFromString(htmlString, 'text/html');
+
+    // Remove elements with specific classes or styles
+    const elementsToRemove = doc.querySelectorAll('.mw-parser-output .cs1-ws-icon'); // Add other selectors as needed
+    elementsToRemove.forEach((element) => element.remove());
+  
+    return doc.body.textContent || '';
 }
+
+const cleanWikiText = (wikiText) => {
+    // Remove known patterns or styles
+    const cleanedText = wikiText
+      .replace(/\.mw-parser-output.*?{.*?}/g, '') // Remove styles
+      .replace(/(?:\[.*?\])|(?:\{\{.*?\}\})|(?:<ref.*?<\/ref>)/gs, '') // Remove citations, templates, etc.
+      .trim();
+  
+    return cleanedText;
+  };
 
 export default function GenerateDict(props){
     //Get dictionary, branching factor, and number of bigrams from context manager
@@ -47,7 +62,10 @@ export default function GenerateDict(props){
     //When the title of the input Wikipedia article has been changed
     const wikiTitleChange = (title) => {
         //If the last import was unsuccessful, change the flag to true again
-        if (!wikiImportSuccessful) {setWikiImportSuccesful(true);}
+        if (!wikiImportSuccessful) {
+            setWikiImportSuccesful(true);
+            setInputText("");
+        }
         //Set the clear pane status to false
         setClearPaneOneClicked(false);
         //Set title
@@ -55,54 +73,115 @@ export default function GenerateDict(props){
 
     }
 
-    //When an article is attempting to be imported from Wikipedia
-    const importWikiArticle = async () => {
+    //Mapping clicking the enter key to the submit button
+    const wikiEnterButton = (event) => {
+        //Check if the enter key has been clicked
+        if (event.key === "Enter" && !event.shiftKey) {
+            //Prevent default enter key behaviour and trigger import button
+            event.preventDefault();
+            importWikiArticle();
 
-        //Replace all spaces in text with underscores
-        const formattedTitle = wikiArticleTitle.replace(" ", "_")
-        //Attempt an API request (get the associated Wikipedia article)
-        try {
-            //Request
-            const wikiResponse = await axios.get(
-                "https://en.wikipedia.org/w/api.php?action=query&origin=*&prop=extracts&format=json&exintro=&titles=" + formattedTitle
-            )
-            
-            //Get all pages, find the first page index, and extract all text
-            const allPages = wikiResponse.data.query.pages;
-            const firstPage = Object.keys(allPages)[0];
-
-            //Check to see if the extraction was successful
-            if (firstPage === "-1") {
-
-                //Simulate the clear button being clicked
-                clearButtonClicked();
-
-                setWikiArticleTitle("Could not find article named '" + formattedTitle + "'. Please check spelling and capitalization.");
-                setInputText("");
-                //Set the successful import flag to false
-                setWikiImportSuccesful(false);
-                //Set the Wikipedia imported flag to false
-                setWikiImported(false);
-
-
-            } else {
-                const extractedFPText = allPages[firstPage].extract;
-                const cleanedText = removeHtmlTags(extractedFPText).replace("\n", "").trim().split("\n").join("\n\n");
-                //Replace all HTML tages in extracted text with content
-                setInputText(cleanedText);
-
-                //Set the Wikipedia Imported flag to true (which will trigger automatic dictionary and text generation updates)
-                setWikiImported(true);
-                //Set the successful import flag to true
-                setWikiImportSuccesful(true);
-            }
-
-
-        } catch (error) {
-            console.log("An error has been encountered.")
         }
     }
+
+    // Function to fetch the content of a specific section
+    const fetchSectionContent = async (formattedTitle, sectionIndex) => {
+        try {
+        const sectionApiUrl = `https://en.wikipedia.org/w/api.php?action=parse&format=json&page=${formattedTitle}&section=${sectionIndex}&origin=*`;
+        const sectionResponse = await axios.get(sectionApiUrl);
+        const sectionData = sectionResponse.data;
+        return sectionData.parse.text['*'];
+        } catch (error) {
+        console.error('Error fetching Wikipedia section content:', error);
+        return 'Error fetching section content.';
+        }
+    };
     
+    // When an article is attempting to be imported from Wikipedia
+    const importWikiArticle = async () => {
+        // Replace all spaces in text with underscores
+        const formattedTitle = wikiArticleTitle.replaceAll(" ", "_");
+    
+        try {
+        console.log("Sending request to Wikipedia for article '" + formattedTitle + "'...");
+    
+        // Request to get the associated Wikipedia article with sections and wikitext
+        const wikiResponse = await axios.get(
+            `https://en.wikipedia.org/w/api.php?action=parse&format=json&page=${formattedTitle}&prop=sections|wikitext&origin=*`
+        );
+    
+        // Get all sections from the response
+        const data = wikiResponse.data;
+        
+        
+
+        // Check if the extraction was successful
+        if (data?.parse?.sections === undefined) {
+            console.log("Request succeeded, but given title is invalid.");
+    
+            // Simulate the clear button being clicked
+            clearButtonClicked();
+    
+            setInputText("Could not find article named '" + formattedTitle + "'. Please check spelling and capitalization.");
+            setWikiArticleTitle("");
+            
+            // Set the successful import flag to false
+            setWikiImportSuccesful(false);
+            
+            // Set the Wikipedia imported flag to false
+            setWikiImported(false);
+        } else {
+            
+            const sections = data.parse.sections || [];
+            // Fetch content for each section
+            const sectionsContent = await Promise.all(
+                sections.map(async (section) => {
+                const sectionText = await fetchSectionContent(formattedTitle, section.index);
+                return {
+                    title: section.line,
+                    content: removeHtmlTags(sectionText).trim().replace("\n\n", "\n"),
+                };
+                })
+            );
+            
+            // Concatenate the content of all sections
+            const allSectionsText = sectionsContent
+            .map((section) => `${section.title}\n\n${cleanWikiText(removeHtmlTags(section.content))}`)
+            .join('\n\n');
+
+            if (allSectionsText === "") {
+                console.log("Request succeeded, but given title is invalid.");
+    
+                // Simulate the clear button being clicked
+                clearButtonClicked();
+        
+                setInputText("Could not find article named '" + formattedTitle + "'. Please check spelling and capitalization.");
+                setWikiArticleTitle("");
+                
+                // Set the successful import flag to false
+                setWikiImportSuccesful(false);
+                
+                // Set the Wikipedia imported flag to false
+                setWikiImported(false);
+            } else {
+                console.log("Request succeeded.");
+                // Set the input text with the content of all sections
+                setInputText(allSectionsText);
+        
+                // Set the Wikipedia Imported flag to true
+                setWikiImported(true);
+                
+                // Set the successful import flag to true
+                setWikiImportSuccesful(true);
+            }
+        }
+        } catch (error) {
+        console.log("Request to Wikipedia failed.");
+        console.log(error);
+        }
+    };
+    
+
     //When the re-build dictionary button is clicked
     const rebuild_dict_clicked = () => {
         //Verify that adequate text has been provided
@@ -134,10 +213,6 @@ export default function GenerateDict(props){
         setWikiImportSuccesful(true);
 
     }
-
-    useEffect(() => {
-        console.log("GENERATED TEXT:", generatedText);
-    }, [generatedText])
 
     //Use Effect -> builds dictionary and generates text each time the model type is changed or a Wikipedia article is imported and the enable button is disabled.
     useEffect (() => {
@@ -178,12 +253,12 @@ export default function GenerateDict(props){
                     <div className = "wikipedia-outline" class = "flex flex-row w-11/12 h-full rounded-md outline outline-2 outline-green-800 px-2 py-2 space-x-2 items-center align-center text-center justify-center">
                         {wikiImportSuccessful ? (
                             <div className = "wikipedia-import-successful" class = "flex flex-row items-center align-center justify-center space-x-2 w-full h-full">
-                                <textarea className = "wiki-search-area" onChange = {wikiTitleChange} class = "flex text-xs w-8/12 h-full overflow-x-auto overflow-hidden text-center items-center justify-center overflow-none rounded-lg outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500" value = {wikiArticleTitle}></textarea>
+                                <textarea className = "wiki-search-area" onChange = {wikiTitleChange} onKeyDown = {wikiEnterButton} class = "flex text-xs w-8/12 h-full overflow-x-auto overflow-hidden text-center items-center justify-center overflow-none rounded-lg outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500" value = {wikiArticleTitle}></textarea>
                                 <button className = "import-from-wiki" onClick = {importWikiArticle} class = "flex w-3/12 h-full rounded-md font-bold bg-green-900 text-white text-center align-center items-center self-center justify-center monitor:text-sm 2xl:text-sm xl:text-xs sm:text-xs hover:bg-slate-700 hover:ring">Import</button> 
                             </div>   
                         ) : (
                             <div className = "wikipedia-import-successful" class = "flex flex-row items-center align-center justify-center space-x-2 w-full h-full">
-                                <textarea className = "wiki-search-area" onChange = {wikiTitleChange} class = "flex text-xs text-red-400 w-8/12 h-full overflow-x-auto overflow-hidden text-center items-center justify-center overflow-none rounded-lg outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500" value = {wikiArticleTitle}></textarea>
+                                <textarea className = "wiki-search-area" onChange = {wikiTitleChange} onKeyDown = {wikiEnterButton} class = "flex text-xs w-8/12 h-full overflow-x-auto overflow-hidden text-center items-center justify-center overflow-none rounded-lg outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500" value = {wikiArticleTitle}></textarea>
                                 <button className = "import-from-wiki" class = "flex w-3/12 h-full rounded-md font-bold bg-gray-200 text-gray-300 text-center align-center items-center self-center justify-center monitor:text-sm 2xl:text-sm xl:text-xs sm:text-xs">Import</button> 
                             </div>  
                             
@@ -195,8 +270,12 @@ export default function GenerateDict(props){
                 </div>
                 
             </div>
+            {wikiImportSuccessful ? (
+                <textarea className = "gram-model-text" type = "textarea" defaultValue = {inputText} onChange = {textRetrieval} value = {inputText} class = "rounded-md p-2 h-5/6 w-11/12 outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500"></textarea>
+            ) : (
+                <textarea className = "gram-model-text" type = "textarea" defaultValue = {inputText} onChange = {textRetrieval} value = {inputText} class = "text-red-500 rounded-md p-2 h-5/6 w-11/12 outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500"></textarea>
+            )}
             
-            <textarea className = "gram-model-text" type = "textarea" defaultValue = {inputText} onChange = {textRetrieval} value = {inputText} class = "rounded-md p-2 h-5/6 w-11/12 outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500"></textarea>
             {/* Display the text generation option if clicked is true*/}
             {validText ? (
                 <div></div>
