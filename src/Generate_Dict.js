@@ -112,6 +112,7 @@ export default function GenerateDict(props){
     
         // Get all sections from the response
         const data = wikiResponse.data;
+        console.log("WIKI RESPONSE:", wikiResponse);
         
         
 

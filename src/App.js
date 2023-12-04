@@ -20,10 +20,13 @@ export default function App() {
   let [dictGenerated, setDictGenerated] = useState(false);
 
   //The About window when the respective button is clicked
+
   const openAboutWindow = () => {
-    const aboutPath = `${window.location.origin}${process.env.PUBLIC_URL}/about.html`;
+    //Build a new URL (adding about.html to the current path) and convert it to a string
+    const aboutPath = new URL('about.html', window.location.href).toString();
+    //Open the built path
     const about_window = window.open(aboutPath, '_blank');
-    // Set the window to the object   
+    //Set the window object accordingly
     setAboutWindow(about_window);
   };
 
