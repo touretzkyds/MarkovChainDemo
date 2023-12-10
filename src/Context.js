@@ -182,6 +182,8 @@ export const DictContextProvider = ({ children }) => {
     let [enableButton, setEnableButton] = useState(false);
     //Set model type
     const [modelType, setModelType] = useState("Bi-gram");
+    //To store frequency of words in the dictionary
+    const [frequencies, setFrequencies] = useState({});
     //Set Text Generation Variables
     const [generatedText, setGeneratedText] = useState("");
     //Set word count
@@ -326,7 +328,44 @@ export const DictContextProvider = ({ children }) => {
         //Sum and divide by number of keys - account for if the length of the keys is zero
         
         return key_lengths != 0 ? Math.round((key_lengths.reduce(function(a, b) {return a + b;}, 0) / Object.keys(dict).length + Number.EPSILON) * 1000) / 1000 : 0;
-    }   
+    }
+
+    //Select a word based on the frequency said word occurs in within the given text
+    const select_word_probabilistically = (existingOptions) => {
+
+        //Get all frequencies
+        const optFrequences = [];
+        for (var i = 0; i < existingOptions.length; i++) {optFrequences.push(frequencies[existingOptions[i]]);}
+
+        //Sum and normalize all frequencies
+        const freqSum = optFrequences.reduce((incompleteSum, f) => incompleteSum + f, 0);
+        //Normalize
+        const normFactor = 1.0/freqSum;
+        for (var i = 0; i < optFrequences.length; i++) {optFrequences[i] = optFrequences[i] * normFactor;}
+
+        //Choose new word based on probabilities
+        //Randomly generate value between 0 and 1
+        const randomNum = Math.random();
+        //This random number will be compared to each wordOption's probabilities
+        let probSum = 0;
+
+        //Iterate over all probabilities
+        for (var i = 0; i < optFrequences.length; i++) {
+
+            //Add the current probability to the probSum
+            probSum += optFrequences[i];
+
+            //If the randomly generated number is in the appropriate range, assign the associated option to the current word
+            if (randomNum < probSum) {
+                return existingOptions[i];
+            }
+
+        }
+
+        //If the function has not already returned (i.e. the word has not been assigned a new value), we are in the probability range of the final word
+        //Return the final word in the array
+        return existingOptions[existingOptions.length - 1];
+    }
 
     //Generate bigram text
     const gen_bigram = (start = null, bigram_dict = null, word_count = wordCount) => {
@@ -352,9 +391,11 @@ export const DictContextProvider = ({ children }) => {
             count++;
             //Verify that the word is in the dictionary
             if (Object.keys(bigram_dict).indexOf(word) > -1) {
-                //Choose new word based on values
-                word = bigram_dict[word][Math.floor(Math.random() * bigram_dict[word].length)];
-            //Set the word to null otherwise
+
+                //Select new word based on frequency
+                word = select_word_probabilistically(bigram_dict[word]);
+            
+                //Set the word to null otherwise
             } else {word = null;}
         }
         //Remove leading and trailing spaces before returning
@@ -389,7 +430,8 @@ export const DictContextProvider = ({ children }) => {
             if (Object.keys(trigram_dict).indexOf(key) > -1) {
                 //Choose new words based on values
                 word1 = word2
-                word2 = trigram_dict[key][Math.floor(Math.random() * trigram_dict[key].length)];
+                //The final word will also take probability of occurence into account
+                word2 = select_word_probabilistically(trigram_dict[key]);
             //Set the word to null otherwise
             } else {
                 word1 = null;
@@ -429,7 +471,8 @@ export const DictContextProvider = ({ children }) => {
                 //Choose new words based on values
                 word1 = word2;
                 word2 = word3;
-                word3 = tetragram_dict[key][Math.floor(Math.random() * tetragram_dict[key].length)];
+                //Select third word based on frequency of occurence for given options
+                word3 = select_word_probabilistically(tetragram_dict[key]);
             //Set the word to null otherwise
             } else {
                 word1 = null;
@@ -531,6 +574,8 @@ export const DictContextProvider = ({ children }) => {
             setLenDict,
             modelType,
             setModelType,
+            frequencies,
+            setFrequencies,
             generatedText,
             setGeneratedText,
             wordCount,
