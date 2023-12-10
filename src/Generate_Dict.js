@@ -25,10 +25,11 @@ const cleanWikiText = (wikiText) => {
 
 export default function GenerateDict(props){
     //Get dictionary, branching factor, and number of bigrams from context manager
-    const {inputText, setInputText, nGramDict, setNGramDict, modelType, setModelType, branchingFactor, setBranchingFactor, generatedText, setGeneratedText, wordCount, textGenMode, build_dictionary, generate_text} = useDictContext();
+    const {inputText, setInputText, enableButton, setEnableButton, 
+           nGramDict, setNGramDict, modelType, setModelType, 
+           branchingFactor, setBranchingFactor, generatedText, 
+           setGeneratedText, wordCount, textGenMode, build_dictionary, generate_text} = useDictContext();
     
-    //Enabling the Re-build button
-    let [enableButton, setEnableButton] = useState(false);
     //Text provided state
     let [validText, setValidText] = useState(true);
     //Dictionary generated state
@@ -53,10 +54,11 @@ export default function GenerateDict(props){
         //Set input text
         setInputText(text.target.value)
         //Check if we are not currently performing manual text generation
-        if (textGenMode != "manual") {
-            //Enable the Re-Build Dictionary Button
-            setEnableButton(true);
-        }
+        setEnableButton(true);
+        // if (textGenMode != "manual") {
+        //     //Enable the Re-Build Dictionary Button
+            
+        // }
     }
 
     //When the title of the input Wikipedia article has been changed
@@ -208,7 +210,7 @@ export default function GenerateDict(props){
         setInputText("");
         setNGramDict({});
         setBranchingFactor(0);
-        setWikiArticleTitle("");
+        setWikiArticleTitle("🔍Search for a Wikipedia Article.");
         setGeneratedText("Enter text or import in pane one first.");
         setWikiImported(false);
         setWikiImportSuccesful(true);
@@ -264,8 +266,6 @@ export default function GenerateDict(props){
                             </div>  
                             
                         )}
-                        
-                        
                     </div>
                     
                 </div>

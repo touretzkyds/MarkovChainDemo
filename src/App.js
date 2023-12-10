@@ -38,7 +38,7 @@ export default function App() {
             <div className = "header-text-col" class = "flex flex-col w-full">
               <div className = "heading" class = "flex flex-row w-full h-full space-x-5">
                 <div className = "header-text" class = "text-2xl font-bold">Markov Chain Demo</div>
-                <button className = "about-button" onClick = {openAboutWindow} class = "bg-white text-black font-bold hover:bg-black hover:text-white hover:ring rounded-md w-1/12 h-full outline outline-1">About</button>
+                <button className = "about-button" onClick = {openAboutWindow} class = "bg-white text-black font-bold hover:bg-black hover:text-white hover:ring rounded-md w-1/12 h-full outline outline-1">About / Help</button>
               </div>
               
               <div className = "subheader-text" class = "">A tool to explore and tinker with n-grams - a statistical precursor to Large Language Models (LLMs).</div>

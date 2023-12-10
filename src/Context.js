@@ -178,6 +178,8 @@ export const DictContextProvider = ({ children }) => {
     const [nGramDict, setNGramDict] = useState({});
     const [branchingFactor, setBranchingFactor] = useState(0);
     const [lenDict, setLenDict] = useState(0);
+    //Enabling the Re-build dictionary button
+    let [enableButton, setEnableButton] = useState(false);
     //Set model type
     const [modelType, setModelType] = useState("Bi-gram");
     //Set Text Generation Variables
@@ -519,6 +521,8 @@ export const DictContextProvider = ({ children }) => {
             //Variables
             inputText,
             setInputText,
+            enableButton,
+            setEnableButton,
             nGramDict, 
             setNGramDict,
             branchingFactor,

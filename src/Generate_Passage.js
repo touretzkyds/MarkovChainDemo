@@ -5,9 +5,18 @@ import ManualTextOptions from "./ManualTextOptions";
 
 //Function
 export default function GeneratePassage(props){
+
     //Get user ID and other helper variables from context
     //In particular, leverage nodesAdded rather than generatedText to display iteratively and higlight keys in automatic generation mode
-    const {nGramDict, currentWord, modelType, autoGraphAllowed, setAutoGraphAllowed, generatedText, setGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, key, setKey, setWordCount, textGenMode, setTextGenMode, enableNextWord, setEnableNextWord, setKeysAdded, generate_text, clearButtonClicked, setClearButtonClicked, currentWordCounter, setCurrentWordCounter} = useDictContext();
+    const {nGramDict, enableButton, setEnableButton,
+           currentWord, modelType, autoGraphAllowed, 
+           setAutoGraphAllowed, generatedText, setGeneratedText, 
+           wordCount, setCurrentWord, wordOptions, setWordOptions, 
+           key, setKey, setWordCount, textGenMode, setTextGenMode, 
+           enableNextWord, setEnableNextWord, setKeysAdded, 
+           generate_text, clearButtonClicked, setClearButtonClicked, 
+           currentWordCounter, setCurrentWordCounter} = useDictContext();
+
     //Enable next word selection panel
     // const [enableNextWord, setEnableNextWord] = useState(false);
     //Keep track for the switch whether the mode of generation is automatic or not
@@ -103,7 +112,7 @@ export default function GeneratePassage(props){
             setCurrentWord("")
             display_text = "";
         }
-    }, [enableNextWord, modelType])
+    }, [enableNextWord, modelType, nGramDict])
 
     //Check whether the display pane has been reset 
     useEffect(() => {
@@ -197,6 +206,13 @@ export default function GeneratePassage(props){
         //Set 
         setCurrentWord(chosen_word);
     }
+    
+    //If the mode of text generation has shifted back to manual, automatically generate more text
+    useEffect(() => {
+        if (textGenMode === "automatic") {
+            gen_button_clicked();
+        }
+    }, [textGenMode])
 
     return (
         <div className = "generated-passage-section" class = "flex flex-col space-y-2 h-full w-full align-left text-left items-center justify-center bg-zinc-50 rounded-md drop-shadow-md">
@@ -230,16 +246,32 @@ export default function GeneratePassage(props){
                 <div className = "button-and-word-limit-container" class = "flex w-1/3 h-full align-middle justify-end items-right space-x-2">
                     {textGenMode === "automatic" ? (
                         <div class = "flex h-full w-full items-right align-right justify-end">
-                            <div className = "word-limit" class = "flex flex-col w-5/12 justify-center text-center items-center space-y-1">
-                                <label for = "word-limit" class = "monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Max Words:</label>  
-                                <input type = "text" id = "word-limit" name = "word-limit" placeholder = "100" value = {wordCount} onChange = {change_word_limit} class = "flex h-1/2 w-9/12 rounded-md outline outline-slate-100 justify-center items-center text-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs"></input>
-                            </div>
-                            <button className = "generate-text" onClick = {gen_button_clicked} class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-green-900 text-white font-bold rounded-md w-6/12 py-2 h-10 outline outline-1 hover:bg-slate-700 hover:ring">Generate Text</button>
+
+                            {enableButton && 
+                                <div className = "word-limit" class = "flex flex-col w-5/12 justify-center text-center items-center space-y-1">
+                                    <label for = "word-limit" class = "monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Max Words:</label>  
+                                    <input readonly type = "text" id = "word-limit" name = "word-limit" placeholder = "100" value = {wordCount} class = "flex h-1/2 w-9/12 rounded-md outline outline-slate-100 bg-gray-200 text-gray-300 justify-center items-center text-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs"></input>
+                                </div>
+                            }
+
+                            {!enableButton &&
+                                <div className = "word-limit" class = "flex flex-col w-5/12 justify-center text-center items-center space-y-1">
+                                    <label for = "word-limit" class = "monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Max Words:</label>  
+                                    <input type = "text" id = "word-limit" name = "word-limit" placeholder = "100" value = {wordCount} onChange = {change_word_limit} class = "flex h-1/2 w-9/12 rounded-md outline outline-slate-100 justify-center items-center text-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs"></input>
+                                </div>
+                            }
+
+                            {enableButton && <button className = "generate-text" class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-gray-200 text-gray-300 font-bold rounded-md w-6/12 py-2 h-10 outline outline-1">Generate Text</button>}
+                            {!enableButton && <button className = "generate-text" onClick = {gen_button_clicked} class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-green-900 text-white font-bold rounded-md w-6/12 py-2 h-10 outline outline-1 hover:bg-slate-700 hover:ring">Generate Text</button>}
+                            
                         </div>
                     ) : (
                         <div className = "container" class = "flex flex-row text-center w-full h-full space-x-2">
-                            <button className = "generate-text" onClick = {clear_button_clicked} class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-green-900 text-white font-bold rounded-md w-6/12 py-2 h-10 outline outline-1 hover:bg-slate-700 hover:ring">Clear</button>
-                            <button className = "random-word-choice" onClick = {random_word_choice} class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-red-500 text-gray-300 text-white font-bold rounded-md w-6/12 py-2 h-10 outline outline-1 hover:bg-red-800 hover:ring">Random Choice</button>
+                            {enableButton && <button className = "generate-text" class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-gray-200 text-gray-300 font-bold rounded-md w-6/12 py-2 h-10 outline outline-1">Clear</button>}
+                            {enableButton && <button className = "random-word-choice" class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-gray-200 text-gray-300 font-bold rounded-md w-6/12 py-2 h-10 outline outline-1">Random Choice</button>}
+                            
+                            {!enableButton && <button className = "generate-text" onClick = {clear_button_clicked} class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-green-900 text-white font-bold rounded-md w-6/12 py-2 h-10 outline outline-1 hover:bg-slate-700 hover:ring">Clear</button>}
+                            {!enableButton && <button className = "random-word-choice" onClick = {random_word_choice} class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-red-500 text-gray-300 text-white font-bold rounded-md w-6/12 py-2 h-10 outline outline-1 hover:bg-red-800 hover:ring">Random Choice</button>}
                         </div>
                         
                     )}
