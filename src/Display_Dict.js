@@ -3,9 +3,9 @@ import { useDictContext } from "./Context";
 
 function DisplayDict() {
     //Get variables from context
-    const { inputText, setInputText, nGramDict, modelType, setModelType, branchingFactor, setBranchingFactor, lenDict, setLenDict, branching_factor, get_words} = useDictContext();
-    //To store frequency of words in the dictionary
-    const [frequencies, setFrequencies] = useState({});
+    const { inputText, setInputText, nGramDict, modelType, setModelType, 
+            frequencies, setFrequencies, branchingFactor, setBranchingFactor, 
+            lenDict, setLenDict, branching_factor, get_words} = useDictContext();
 
     //When a model option is selected
     const modelSelect = (selection) => {
@@ -17,9 +17,11 @@ function DisplayDict() {
 
     //Calculate branching factor, length, and word frequencies of the dictionary (if the model is a bi-gram) each time the dict changes
     useEffect(() => {
+
         setBranchingFactor(branching_factor(nGramDict));
         setLenDict(Object.keys(nGramDict).length);
-        if (modelType === "Bi-gram") {determine_frequency();}
+        determine_frequency()
+
     }, [nGramDict])
 
     //For each key in the dictionary, determine its frequency and store accordingly
