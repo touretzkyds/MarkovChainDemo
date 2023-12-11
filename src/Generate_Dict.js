@@ -26,9 +26,10 @@ const cleanWikiText = (wikiText) => {
 export default function GenerateDict(props){
     //Get dictionary, branching factor, and number of bigrams from context manager
     const {inputText, setInputText, enableButton, setEnableButton, 
-           nGramDict, setNGramDict, modelType, setModelType, 
-           branchingFactor, setBranchingFactor, generatedText, 
-           setGeneratedText, wordCount, textGenMode, build_dictionary, generate_text} = useDictContext();
+           nGramDict, setNGramDict, modelType, setModelType,
+           frequencies, setFrequencies, branchingFactor, setBranchingFactor, 
+           generatedText,  setGeneratedText, wordCount, textGenMode, 
+           build_dictionary, generate_text} = useDictContext();
     
     //Text provided state
     let [validText, setValidText] = useState(true);
@@ -232,10 +233,11 @@ export default function GenerateDict(props){
     useEffect(() => {
         //Check to verify that manual text generation has not taken place and that the clear button has not been clicked
         //Also check that we are not in the state just after the clear button has been clicked
-        if (textGenMode != "manual" && Object.keys(nGramDict).length !== 0) {
+        //Finally, verify that the frequencies dictionary has been built
+        if (textGenMode != "manual" && Object.keys(nGramDict).length !== 0 && Object.keys(frequencies).length !== 0) {
             setGeneratedText(generate_text(nGramDict, modelType, wordCount));
         }
-    }, [nGramDict, wordCount])
+    }, [nGramDict, wordCount, frequencies])
 
     //HTML
     return (
