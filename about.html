@@ -16,7 +16,7 @@
 
 	<h4> Overview </h4>
 
-        How do large language models like ChatGPT generate novel text
+        How do large language models such as ChatGPT generate novel text
         after training on a large collection of source material?  To
         explain this, it's common to start with the concept of Markov
         chains.  One example is this video from Code.org:<p/>
@@ -69,18 +69,19 @@
 	MarkovChainDemo uses the first few pages of chapter 1
 	of <i>The Wizard of Oz</i> as its default source text.  This
 	is shown in pane [1].  To the right of that, pane [2] shows
-	the table compiled from the text. For each word, shown in
+	the table compiled from the text. For each word, printed in
 	green, the table lists all the words that have followed it in
 	the text, along with how many times that word occurred.  If
 	you scroll down to the entry for "girl" you will see the five
 	words that have followed it in this source text.  The header
 	in pane [2] indicates that the table contains a total of 599
-	words, and that each word has an average of 2.5 successors.
-	The first word is "a", and if you use the scroll bar to scroll
-	down to the end of the table you'll see that the last entries
-	are the punctuation marks.<p/>
+	words, and that each word has an average of 2.5 successors
+	(the "branching factor".)  The first word is "a", and if you
+	use the scroll bar to scroll down to the end of the table
+	you'll see that the last entries are the punctuation
+	marks.<p/>
 
-	Pane [3] in the bottom left contains the generated text.  By
+	Pane [3] at the bottom left contains the generated text.  By
 	default we limit the length of this text to 100 words, but you
 	can change the limit if you wish.  Press the green Generate
 	Text button to generate new text sequences starting with a
@@ -101,9 +102,9 @@
 
 	<h4> Using A Different Source Text </h4>
 
-	To replace the default Wizard of Oz text in pane [1] with
-	something else, press the Clear button and then paste or type
-	in the text you would like to use.<p/>
+	To replace the default <i>Wizard of Oz</i> text in pane [1]
+	with something else, press the Clear button and then paste or
+	type in the text you would like to use.<p/>
 
 	It's also possible to import Wikipedia articles as source
 	text.  Type the title of the article into the Wikipedia
@@ -117,8 +118,8 @@
 	individual word and its successors.  In computer science
 	terminology the table is called a "dictionary".  Each
 	dictionary holds a collection of "entries" which consist of a
-	"key" and a "value".  In the bigram dictionary, the key is a
-	word and the value is a list of successor words.  Bigrams are
+	"key" and a "value".  In the bigram dictionary, the keys are
+	words and the values are lists of successor words.  Bigrams are
 	not a very good statistical model of English, which is why
 	text generated using a bigram model doesn't make much
 	sense.<p/>
@@ -141,10 +142,10 @@
 	have only one successor.  The number would go up if a larger
 	body of source text were supplied.<p/>
 
-	Moving to the trigram statistical model generates somewhat
-	more sensible text because we are using a
-	larger <i>context</i> (two words instead of one) to record
-	possible successors.<p/>
+	The trigram statistical model generates somewhat more sensible
+	text than the bigram model because it uses more <i>context</i>
+	(two words instead of one) when choosing possible
+	successors.<p/>
 
 	We can go even further and try a <i>tetragram model</i>, where
 	each dictionary key is a sequence of three words and the
@@ -176,9 +177,9 @@
 	larger amounts of context into account than just the last few
 	words of generated text.  But even this wouldn't be enough to
 	reach ChatGPT-level performance.  The final thing we would
-	need is a more sophisticated approach to statistical inference
-	than is possible with dictionary look-up.  Thus, we should
-	replace the dictionary with a deep neural network.<p/>
+	need is more sophisticated statistical inference than is
+	possible with an n-gram model.  Thus, we should replace the
+	dictionary with a deep neural network.<p/>
 
         A deep neural network is able to use the entire body of text
         generated so far (plus the "prompt" if one was supplied) as
@@ -203,6 +204,55 @@
 	simpler Markov chain models we examined here: they both
 	generate text one word at a time based on statistics mixed
 	with random choice.<p/>
+
+        <h4> To Learn More </h4>
+
+        <b>(1) Markov Models:</b>  The type of Markov model we've been
+            using is called a discrete time Markov model, or Markov
+            chain.  Markov chains are said to be "memoryless" because
+            they depend only on the current state, not on past
+            history.  To put this in familiar terms, for bigrams the
+            "state" is the current word.  For trigrams the state is
+            the last two words, and for tetragrams it's the last three
+            words.  Each dictionary key is a "state", and the list of
+            successor words determines the next states that can be
+            reached from that state.  It is common to draw Markov
+            models as graphs where the states are nodes and the
+            allowed transitions between them are links.  Every
+            transition has a numeric "weight" attached to it which
+            gives the probability that that transition will be
+            chosen.<p/>
+
+            <center><img src="img/MarkovChain3.png" alt="Markov chain diagram" width=300></center><p/>
+
+            The figure above shows a tiny portion of the Markov state
+            diagram for our bigram model of <i>The Wizard of Oz</i>
+            text.  Note that for each node where the outgoing transitions
+            are shown, the weights always sum to 1; this is a
+            requirement when working with probabilities.<p/>
+
+            Even if a state represents the last several words instead
+            of just the word most reccently chosen, the Markov model
+            is still considered "memoryless" because its states
+            contain only a finite amount of information, while the
+            length of the generated sequence is potentially
+            infinite.<p/>
+
+          <b>(2) Transformer neural networks:</b>  The neural network
+            architecture most commonly used by large language models
+            such as ChatGPT is the <i>transformer</i>.  There are many
+            online resources describing how transformers work.  See
+            <a href="https://github.com/touretzkyds/ai4k12/wiki/Links:-Transformer-Networks"
+               target="_new">this page</a> for suggestions.<p/>
+
+          <b>(3) Word embeddings:</b> Word embeddings are the
+          representations transformers use to access meaning.  See
+          this <a href="https://www.cs.cmu.edu/~dst/WordEmbeddingDemo"
+          target="_new">Word Embedding Demo</a> to learn more about
+          how they work.<p/>
+
+        </ul>
+                 
 
 	<h4> Credits </h4>
 
