@@ -78,8 +78,10 @@
 	words, and that each word has an average of 2.5 successors
 	(the "branching factor".)  The first word is "a", and if you
 	use the scroll bar to scroll down to the end of the table
-	you'll see that the last entries are the punctuation
-	marks.<p/>
+	you'll see that the last entries are the punctuation marks.
+	The "Export" button in pane 2 saves the dictionary as a json
+	file that can be imported into other programs for further
+	experimentation.<p/>
 
 	Pane [3] at the bottom left contains the generated text.  By
 	default we limit the length of this text to 100 words, but you
@@ -207,7 +209,7 @@
 
         <h4> To Learn More </h4>
 
-        <b>(1) Markov Models:</b>  The type of Markov model we've been
+        <b>(1) Markov Models:</b> The type of Markov model we've been
             using is called a discrete time Markov model, or Markov
             chain.  Markov chains are said to be "memoryless" because
             they depend only on the current state, not on past
@@ -220,10 +222,64 @@
             models as graphs where the states are nodes and the
             allowed transitions between them are links.  Every
             transition has a numeric "weight" attached to it which
-            gives the probability that that transition will be
-            chosen.<p/>
+            gives the probability that that transition will be chosen.
+            For example: the word "girl" appears 25 times in the
+            source text, and for one of those appearances the
+            successor is "gave".  Therefore the probability of "gave"
+            as a successor of "girl" is 1/25 or 0.04.<p/>
 
-            <center><img src="img/MarkovChain3.png" alt="Markov chain diagram" width=300></center><p/>
+        <center>
+	  <table><tr><td>
+	  <table border=1>
+	    <tr>
+	      <td><b>&nbsp;Key</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td><b>&nbsp;Entry</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+	    </tr>
+
+	    <tr>
+	      <td>gave</td><td>&nbsp; ...</td>
+	    </tr>
+
+	    <tr>
+	      <td>girl</td>
+	      <td>
+		gave (1) <br/>
+		started (1) <br/>
+		thought (2) <br/>
+		who (6) <br/>
+		with (15)
+	      </td>
+	    </tr>
+
+	    <tr><td>had</td><td>&nbsp; ...</td></tr>
+
+	    <tr>
+	      <td>started</td>
+	      <td>to (28) </td>
+	    <tr>
+
+	    <tr><td>thought</td><td>&nbsp; ...</td></tr>
+
+	    <tr><td>to</td><td>&nbsp; ...</td></tr>
+
+	    <tr>
+	      <td>who</td>
+	      <td>
+		had (21) <br/>
+		was (35)
+	      </td>
+	    </tr>
+
+	    <tr><td>was</td><td>&nbsp; ...</td></tr>
+
+	    <tr><td>with</td><td>&nbsp; ...</td></tr>
+
+	  </table>
+	      </td>
+	      <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+	      <td>
+	  <img src="img/MarkovChain3.png" alt="Markov chain diagram" width=300 align="top">
+	  </td></tr></table>
+	</center><p/>
 
             The figure above shows a tiny portion of the Markov state
             diagram for our bigram model of <i>The Wizard of Oz</i>
