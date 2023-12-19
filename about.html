@@ -5,10 +5,20 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>About the Markov Chain Demo.</title>
+	<style>
+	  .markovtable {
+	      border: 1px solid;
+	      border-collapse: collapse;
+	  }
+	  .markovtable td {
+	      padding: 5px;
+	      border: 1px solid;
+	  }
+	</style>
     </head>
 
     <body>
-        <!-- div id="root_div" class="about_page flex flex-col h-screen w-screen items-center justify-center py-8'" -->
+        <!-- div class="root_div" class="about_page flex flex-col h-screen w-screen items-center justify-center py-8'" -->
         <!-- div className='application' class='flex flex-col h-full w-11/12 text-left divide-y divide-solid'-->
       <table width=800><tr><td>
 
@@ -230,7 +240,7 @@
 
         <center>
 	  <table><tr><td>
-	  <table border=1>
+	  <table class="markovtable">
 	    <tr>
 	      <td><b>&nbsp;Key</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td><b>&nbsp;Entry</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
 	    </tr>
@@ -261,6 +271,8 @@
 
 	    <tr><td>to</td><td>&nbsp; ...</td></tr>
 
+	    <tr><td>was</td><td>&nbsp; ...</td></tr>
+
 	    <tr>
 	      <td>who</td>
 	      <td>
@@ -268,8 +280,6 @@
 		was (35)
 	      </td>
 	    </tr>
-
-	    <tr><td>was</td><td>&nbsp; ...</td></tr>
 
 	    <tr><td>with</td><td>&nbsp; ...</td></tr>
 
