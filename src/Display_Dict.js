@@ -50,7 +50,7 @@ function DisplayDict() {
                                 {index < successorArr.length - 1 && <span>, </span>}
                             </React.Fragment>
                         ))}
-                </div>
+                    </div>
                 )
             }
         }
@@ -134,7 +134,7 @@ function DisplayDict() {
             </div>
             
             <div className = "dict-display" class = "w-11/12 h-5/6 outline outline-slate-200 bg-white rounded-md overflow-y-auto text-left p-2 inline">
-                <InfiniteScroll
+                {/* <InfiniteScroll
                     pageStart = {0}
                     loadMore = {loadDictElements}
                     hasMore = {hasDictElements}
@@ -142,7 +142,21 @@ function DisplayDict() {
                     useWindow = {false}
                 >
                     {displayDictElements(nGramDict)}
-                </InfiniteScroll>
+                </InfiniteScroll> */}
+                    {Array.from(nGramDict).map(([key, values], index) => (
+                        <div key = {index} class = "">
+                            <strong class = "text-green-900">{reFormatText(key)}: </strong>
+                            {Array.from(values).map(([item, count], index, successorArr) => (
+                                <React.Fragment key={`${values}-${item}`}>
+                                    <li className="inline list-none">
+                                        {reFormatText(item)} (<span>{count}</span>)
+                                    </li>
+                                    {index < successorArr.length - 1 && <span>, </span>}
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    ))}
+
             </div>
         </div>
     )
