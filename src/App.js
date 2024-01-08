@@ -2,7 +2,7 @@ import './App.css';
 import React, {useState, useEffect} from "react";
 import GenerateDict from './Generate_Dict';
 import GeneratePassage from './Generate_Passage';
-import {v4 as uuidv4} from 'uuid';
+
 import DisplayDict from './Display_Dict';
 import Visualizations from './Visualizations';
 import { DictContextProvider } from './Context';
@@ -10,9 +10,7 @@ import "./homepage.css"
 //From opening new webpages 
 
 export default function App() {
-  //Declare user id
-  const gen_id = uuidv4();
-  const [userID, setUserID] = useState(gen_id);
+
   //About Window object
   const [aboutWindow, setAboutWindow] = useState();
   
@@ -45,9 +43,9 @@ export default function App() {
             </div> 
           </div>
           <div className = "application-body" class = "custom-application-body">
-              <GenerateDict userID = {userID} dictGenerated = {dictGenerated} setDictGenerated = {setDictGenerated}/>
+              <GenerateDict dictGenerated = {dictGenerated} setDictGenerated = {setDictGenerated}/>
               <DisplayDict/>
-              <GeneratePassage userID = {userID}/>
+              <GeneratePassage/>
               <Visualizations/>
           </div>
         </div>

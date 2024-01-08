@@ -174,8 +174,8 @@ export const DictContextProvider = ({ children }) => {
 
         // "It has been said that astronomy is a humbling and character-building experience. There is perhaps no better demonstration of the folly of human conceits than this distant image of our tiny world. To me, it underscores our responsibility to deal more kindly with one another, and to preserve and cherish the pale blue dot, the only home we've ever known."
     );
-    //Set Dictionary, Branching Factor, and Gram Count Variables
-    const [nGramDict, setNGramDict] = useState({});
+    //Set Map, Branching Factor, and Gram Count Variables
+    const [nGramDict, setNGramDict] = useState(new Map());
     const [branchingFactor, setBranchingFactor] = useState(0);
     const [lenDict, setLenDict] = useState(0);
     //Enabling the Re-build dictionary button
@@ -188,6 +188,8 @@ export const DictContextProvider = ({ children }) => {
     const [generatedText, setGeneratedText] = useState("");
     //Set word count
     const [wordCount, setWordCount] = useState(100);
+    //Set token count (length of words dictionary)
+    const [tokenCount, setTokenCount] = useState(0);
     //Mode of text generation
     const [textGenMode, setTextGenMode] = useState("automatic");
     //For automatic visualizations
@@ -204,18 +206,21 @@ export const DictContextProvider = ({ children }) => {
     const [clearButtonClicked, setClearButtonClicked] = useState(false);
 
 
-
     // ======== ALL PREPROCESSING FUNCTIONS (REFACTORED INTO JSX FROM PYTHON) ========
 
     //Preprocess and tokenize words
 
     const get_words = (text_string) => {
+
         //Characters to be removed
-        const remove_chars = "—,:;()'\n\t"
+        const remove_chars = "—,:;()\"*^→'\n\t"
+
         //Characters to replace with a space
         const spacer_chars = ".?!"
+
         //Resultant characters
         const result_chars = []
+        
         //Iterate over each character in the text string
         for (var i = 0; i < text_string.length; i++) {
             //Get current character
@@ -239,6 +244,8 @@ export const DictContextProvider = ({ children }) => {
         result_string = result_string.replace(/\s+/g, " ");
         //Split into individual words
         const words = result_string.split(" ");
+        //Set token count
+        setTokenCount(words.length);
         //Return words
         return words;
     }
@@ -247,95 +254,131 @@ export const DictContextProvider = ({ children }) => {
     const make_bigram_dict = (text_string) => {
         //Get individual words from text string
         const words = get_words(text_string);
-        //Blank bigram dictionary
-        const bigram_dict = {};
+        //Combine words into filtered text
+        //Blank bigram map
+        const bigram_map = new Map();
         //Iterate over words
         for (var i = 0; i < words.length - 1; i++) {
+
             //Get key value pair
             const key = words[i];
             const value = words[i+1];
+
             //Check if the key is not in the dictionary
-            if (Object.keys(bigram_dict).indexOf(key) === -1){
-                //Append empty array
-                bigram_dict[key] = [];
+            if (!bigram_map.has(key)){
+                //Add empty Map object
+                bigram_map.set(key, new Map());
             }
+
+            const value_map = bigram_map.get(key);
             //Check if the value has not yet been added to the key
-            if (bigram_dict[key].indexOf(value) === -1) {
-                //Append
-                bigram_dict[key].push(value);
+            if (!value_map.has(value)) {
+                value_map.set(value, 0)
             }
+
+            value_map.set(value, value_map.get(value) + 1)
         }
-        //Return dictionary
-        return bigram_dict
+
+        return bigram_map
     }
 
     //Make trigram dictionary
     const make_trigram_dict = (text_string) => {
+
         //Get individual words from text string
         const words = get_words(text_string);
-        //Blank bigram dictionary
-        const trigram_dict = {};
+
+        //Blank bigram map
+        const trigram_map = new Map();
+
         //Iterate over words
         for (var i = 0; i < words.length - 2; i++) {
+            
             //Get key value pair (keys consist of two words, value is thus two positions ahead)
             const key = words[i] + " " + words[i+1];
             const value = words[i+2];
+
             //Check if the key is not in the dictionary
-            if (Object.keys(trigram_dict).indexOf(key) === -1) {
+            if (!trigram_map.has(key)) {
                 //Append empty array
-                trigram_dict[key] = [];
+                trigram_map.set(key, new Map());
             }
+
+            //Get all values
+            const value_map = trigram_map.get(key);
+
             //Check if the value has not yet been added to the key
-            if (trigram_dict[key].indexOf(value) === -1) {
-                //Append
-                trigram_dict[key].push(value);
+            if (!value_map.has(value)) {
+                //Set
+                value_map.set(value, 0);
             }
+
+            //Set value
+            value_map.set(value, value_map.get(value) + 1);
         }
+
         //Return dictionary
-        return trigram_dict
+        return trigram_map
     }
 
     //Make tetragram dictionary
     const make_tetragram_dict = (text_string) => {
+
         //Get individual words from text string
         const words = get_words(text_string);
-        //Blank bigram dictionary
-        const tetragram_dict = {};
+
+        //Blank tetragram map
+        const tetragram_map = new Map();
+
         //Iterate over words
         for (var i = 0; i < words.length - 3; i++) {
+
             //Get key value pair (keys consist of three words, value is thus three positions ahead)
             const key = words[i] + " " + words[i+1] + " " + words[i+2];
             const value = words[i+3];
+
             //Check if the key is not in the dictionary
-            if (Object.keys(tetragram_dict).indexOf(key) === -1){
+            if (!tetragram_map.has(key)){
                 //Append empty array
-                tetragram_dict[key] = [];
+                tetragram_map.set(key, new Map());
             }
+
+            const value_map = tetragram_map.get(key);
             //Check if the value has not yet been added to the key
-            if (tetragram_dict[key].indexOf(value) === -1) {
-                //Append
-                tetragram_dict[key].push(value);
+            if (!value_map.has(value)) {
+                //Add empty map
+                value_map.set(value, 0);
             }
+
+            //Set frequency
+            value_map.set(value, value_map.get(value) + 1);
         }
+
         //Return dictionary
-        return tetragram_dict
+        return tetragram_map
+
     }
 
     //Calculate branching factor
-    const branching_factor = (dict) => {
+    const branching_factor = (map) => {
         //Get lengths of each key
-        const key_lengths = Object.keys(dict).map(function(key) {return dict[key].length;});
-        //Sum and divide by number of keys - account for if the length of the keys is zero
-        
-        return key_lengths != 0 ? Math.round((key_lengths.reduce(function(a, b) {return a + b;}, 0) / Object.keys(dict).length + Number.EPSILON) * 1000) / 1000 : 0;
+        var map_arr = Array.from(map);
+        const key_lengths = map_arr.map(function(key) {return key[1].size;});
+
+        //Sum and divide by the total number of keys - account for if the length of the keys is zero
+        return key_lengths != 0 ? Math.round((key_lengths.reduce(function(a, b) {return a + b;}, 0) / (map_arr.length + Number.EPSILON)) * 1000) / 1000 : 0;
     }
 
     //Select a word based on the frequency said word occurs in within the given text
-    const select_word_probabilistically = (existingOptions) => {
+    const select_word_probabilistically = (gram_map, word) => {
+
+        //Store all values
+        if (gram_map.get(word) === undefined) {return null;}
+        const values = Array.from(gram_map.get(word));
 
         //Get all frequencies
         const optFrequences = [];
-        for (var i = 0; i < existingOptions.length; i++) {optFrequences.push(frequencies[existingOptions[i]]);}
+        for (var i = 0; i < values.length; i++) {optFrequences.push(values[i][1]);}
 
         //Sum and normalize all frequencies
         const freqSum = optFrequences.reduce((incompleteSum, f) => incompleteSum + f, 0);
@@ -357,145 +400,193 @@ export const DictContextProvider = ({ children }) => {
 
             //If the randomly generated number is in the appropriate range, assign the associated option to the current word
             if (randomNum < probSum) {
-                return existingOptions[i];
+                return values[i][0];
             }
 
         }
 
         //If the function has not already returned (i.e. the word has not been assigned a new value), we are in the probability range of the final word
         //Return the final word in the array
-        return existingOptions[existingOptions.length - 1];
+        return values[values.length - 1][0];
     }
 
     //Generate bigram text
-    const gen_bigram = (start = null, bigram_dict = null, word_count = wordCount) => {
+    const gen_bigram = (start = null, bigram_map = null, word_count = wordCount) => {
+        
+        let bigram_arr = Array.from(bigram_map);
+        //Get all keys
+        const keys = bigram_arr.map(function (pair) {return pair[0];});
+        
         //Check if no starting point has been specified
         if (start === null) {
-            //Get all keys
-            const keys = Object.keys(bigram_dict);
             //Choose a random key to start
             start = keys[Math.floor(Math.random() * keys.length)];
+        
         //Verify that the start key is in the dictionary
-        } else if (Object.keys(bigram_dict).indexOf(start) === -1) {
+        } else if (keys.indexOf(start) === -1) {
             throw ReferenceError("'" + start + "'" + " not in bigram dictionary");
         }
+
         //Set first word, sentence, and generated word count tracker
         let word = start;
         let sentence = "";
         let count = 0;
+
         //Iterate while count < word_count and the word is in the dictionary
         while (word !== null && count < word_count) {
+
             //Concatenate sentence
             sentence = sentence.concat(" ", word);
+
             //Increment count
             count++;
+
             //Verify that the word is in the dictionary
-            if (Object.keys(bigram_dict).indexOf(word) > -1) {
+            if (Array.from(keys.indexOf(word)) > -1) {
 
                 //Select new word based on frequency
-                word = select_word_probabilistically(bigram_dict[word]);
+                word = select_word_probabilistically(bigram_map, word);
             
                 //Set the word to null otherwise
             } else {word = null;}
+
         }
         //Remove leading and trailing spaces before returning
         return sentence.trim();
     }
 
     //Generate trigram text
-    const gen_trigram = (start = null, trigram_dict = null, word_count = wordCount) => {
+    const gen_trigram = (start = null, trigram_map = null, word_count = wordCount) => {
+        
+        let trigram_arr = Array.from(trigram_map);
+        //Get all the keys
+        const keys = trigram_arr.map(function (pair) {return pair[0];});
+
         //Check if no starting point has been specified
         if (start === null) {
-            //Get all keys
-            const keys = Object.keys(trigram_dict);
+
             //Choose a random key to start
             start = keys[Math.floor(Math.random() * keys.length)];
+
         //Verify that the start key is in the dictionary
-        } else if (Object.keys(trigram_dict).indexOf(start) === -1) {
+        } else if (keys.indexOf(start) === -1) {
             throw ReferenceError("'" + start + "'" + " not in trigram dictionary");
         }
+
         //Set first word, sentence, and generated word count tracker
         let [word1, word2] = start.split(" ");
         let sentence = "";
         let count = 0;
+
         //Iterate while count < word_count and the word is in the dictionary
         while (word1 !== null && count < word_count) {
+
             //Concatenate sentence
             sentence = sentence.concat(" ", word1);
+
             //Increment count
             count++;
+
             //Generate key
             const key = word1 + " " + word2;
+
             //Verify that the key is in the dictionary
-            if (Object.keys(trigram_dict).indexOf(key) > -1) {
+            if (Array.from(keys.indexOf(key)) > -1) {
+
                 //Choose new words based on values
                 word1 = word2
+
                 //The final word will also take probability of occurence into account
-                word2 = select_word_probabilistically(trigram_dict[key]);
+                word2 = select_word_probabilistically(trigram_map, key);
+
             //Set the word to null otherwise
             } else {
+
                 word1 = null;
                 word2 = null;
+
             }
         }
+
         //Remove leading and trailing spaces before returning
         return sentence.trim();
+
     }
 
     //Generate tetragram text
-    const gen_tetragram = (start = null, tetragram_dict = null, word_count = wordCount) => {
+    const gen_tetragram = (start = null, tetragram_map = null, word_count = wordCount) => {
+        
+        //Convert map to array; store keys in separate array
+        let tetragram_arr = Array.from(tetragram_map);
+        const keys = tetragram_arr.map(function (pair) {return pair[0];});
+        
         //Check if no starting point has been specified
         if (start === null) {
-            //Get all keys
-            const keys = Object.keys(tetragram_dict);
             //Choose a random key to start
             start = keys[Math.floor(Math.random() * keys.length)];
+        
         //Verify that the start key is in the dictionary
-        } else if (Object.keys(tetragram_dict).indexOf(start) === -1) {
+        } else if (keys.indexOf(start) === -1) {
             throw ReferenceError("'" + start + "'" + " not in tetragram dictionary");
         }
+
         //Set first word, sentence, and generated word count tracker
         let [word1, word2, word3] = start.split(" ");
         let sentence = "";
         let count = 0;
+
         //Iterate while count < word_count and the word is in the dictionary
         while (word1 !== null && count < word_count) {
+
             //Concatenate sentence
             sentence = sentence.concat(" ", word1);
+
             //Increment count
             count++;
+
             //Generate key
             const key = word1 + " " + word2 + " " + word3;
+
             //Verify that the key is in the dictionary
-            if (Object.keys(tetragram_dict).indexOf(key) > -1) {
+            if (Array.from(keys.indexOf(key)) > -1) {
+
                 //Choose new words based on values
                 word1 = word2;
                 word2 = word3;
+
                 //Select third word based on frequency of occurence for given options
-                word3 = select_word_probabilistically(tetragram_dict[key]);
+                word3 = select_word_probabilistically(tetragram_map, key);
+
             //Set the word to null otherwise
             } else {
+
                 word1 = null;
                 word2 = null;
                 word3 = null;
+
             }
         }
+
         //Remove leading and trailing spaces before returning
         return sentence.trim();
     }
 
-    //Build model dictionary
+    //Build model map
     const build_dictionary = (input_text, model_type) => {
-        //Build dictionary according to model type
-        let gen_dict = {};
-        if (model_type === "Bi-gram") {gen_dict = make_bigram_dict(input_text);}
-        else if (model_type === "Tri-gram") {gen_dict = make_trigram_dict(input_text);}
-        else if (model_type === "Tetra-gram") {gen_dict = make_tetragram_dict(input_text);}
+
+        //Build map according to model type
+        let gen_map = new Map();
+
+        if (model_type === "Bi-gram") {gen_map = make_bigram_dict(input_text);}
+        else if (model_type === "Tri-gram") {gen_map = make_trigram_dict(input_text);}
+        else if (model_type === "Tetra-gram") {gen_map = make_tetragram_dict(input_text);}
+        
         //Raise an error if model type is invalid
-        else {throw ReferenceError("Invalid model type supplied to buildDictionary (expected 'Bi-gram', 'Tri-gram', or 'Tetra-gram').")}
+        else {throw ReferenceError("Invalid model type supplied to build_map (expected 'Bi-gram', 'Tri-gram', or 'Tetra-gram').")}
+        
         //Sort by all alphabetical characters - non-alpha characters should be placed at the end of the dictionary.
 
-        // Helper function to compare words while keeping non-alpha words at the end
+        //Helper function to compare words while keeping non-alpha words at the end
         function compareWords(a, b) {
             const isAlphaA = /[a-zA-Z]/.test(a); // Test if a is alphabetical
             const isAlphaB = /[a-zA-Z]/.test(b); // Test if b is alphabetical
@@ -511,47 +602,51 @@ export const DictContextProvider = ({ children }) => {
             }
         }
         
-        // Sort the lists within the dictionary
-        for (const key in gen_dict) {
-            gen_dict[key].sort(compareWords);
+        //Sort the submaps within each map
+        for (const [key, subDict] of gen_map) {
+            const sortedSubKeys = [...subDict.keys()].sort(compareWords);
+            const sortedSubDict = new Map();
+            sortedSubKeys.forEach(subKey => {
+              sortedSubDict.set(subKey, subDict.get(subKey));
+            });
+            gen_map.set(key, sortedSubDict);
         }
 
         //Sort keys in the same way.
-        // Convert the object to an array of key-value pairs
+        //Convert the object to an array of key-value pairs
         //Sort alphabetically via array conversion
-        const gen_arr = Object.entries(gen_dict);
-        // Sort the array
-        gen_arr.sort((a, b) => {
-            const keyA = a[0];
-            const keyB = b[0];
-            
-            // Assign a sorting value for alphabet characters and symbols
+        const gen_arr = Array.from(gen_map);
+
+        //Sort the array
+        gen_arr.sort(([keyA], [keyB]) => {
+            //Assign a sorting value for alphabet characters and symbols
             const valueA = keyA[0].match(/[a-zA-Z]/) ? 0 : 1;
             const valueB = keyB[0].match(/[a-zA-Z]/) ? 0 : 1;
-
-            // If both are of the same type (alphabet or symbol), compare them
+        
+            //If both are of the same type (alphabet or symbol), compare them
             if (valueA === valueB) {
                 return keyA.localeCompare(keyB);
-        }
-
-            // Alphabet characters come before symbols
+            }
+        
+            //Alphabet characters come before symbols
             return valueA - valueB;
         });
+        
+        //Convert the sorted array back to a Map
+        const sorted = new Map(gen_arr);
 
-        // Convert the sorted array back to an object
-        const sorted = Object.fromEntries(gen_arr);
-        //Return dictionary
+        //Return Map
         return sorted;
     }
 
     //Generate Text Function. This will be called both autonomously (when building dictionaries and changing models) as well as when the button is clicked.
     //When the generate button is clicked, perform a get request and retrieve the generated text.
-    const generate_text = (gen_dict, model_type, word_count) => {
+    const generate_text = (gen_map, model_type, word_count) => {
         //Identify model type and generate text accordingly
         let gen_text = "";
-        if (model_type === "Bi-gram") {gen_text = gen_bigram(null, gen_dict, word_count);}
-        else if (model_type === "Tri-gram") {gen_text = gen_trigram(null, gen_dict, word_count);}
-        else if (model_type === "Tetra-gram") {gen_text = gen_tetragram(null, gen_dict, word_count);}
+        if (model_type === "Bi-gram") {gen_text = gen_bigram(null, gen_map, word_count);}
+        else if (model_type === "Tri-gram") {gen_text = gen_trigram(null, gen_map, word_count);}
+        else if (model_type === "Tetra-gram") {gen_text = gen_tetragram(null, gen_map, word_count);}
         //Raise error for invalid model type
         else {throw ReferenceError("Invalid model type supplied to generateText (expected 'Bi-gram', 'Tri-gram', or 'Tetra-gram').")}
         //Return text
@@ -580,6 +675,8 @@ export const DictContextProvider = ({ children }) => {
             setGeneratedText,
             wordCount,
             setWordCount,
+            tokenCount,
+            setTokenCount,
             textGenMode,
             setTextGenMode,
             autoGraphAllowed,

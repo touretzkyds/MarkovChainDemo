@@ -4,7 +4,7 @@ import { useDictContext } from "./Context";
 import ManualTextOptions from "./ManualTextOptions";
 
 //Function
-export default function GeneratePassage(props){
+export default function GeneratePassage(){
 
     //Get user ID and other helper variables from context
     //In particular, leverage nodesAdded rather than generatedText to display iteratively and higlight keys in automatic generation mode
@@ -80,7 +80,7 @@ export default function GeneratePassage(props){
         display_text = "";
 
         //Randomly select a word to begin with
-        const dict_keys = Object.keys(nGramDict);
+        const dict_keys = nGramDict.map(function (pair) {return pair[0];});
         const start_word = dict_keys[Math.floor(Math.random() * dict_keys.length)];
         setCurrentWord(start_word);
         setReset(true);
@@ -127,7 +127,7 @@ export default function GeneratePassage(props){
     useEffect(() => {
         if (reset && textGenMode === "manual") {
             //Randomly select a word to begin with
-            const dict_keys = Object.keys(nGramDict);
+            const dict_keys = Array.from(nGramDict).map(function (pair) {return pair[0];});
             const start_word = dict_keys[Math.floor(Math.random() * dict_keys.length)];
             setCurrentWord(start_word);
             
@@ -150,7 +150,7 @@ export default function GeneratePassage(props){
             //Change keys based on the model - use currentWord as key for bi-gram, the last word + currentWord for tri-gram, and the last two words + currentWord for the tetra-gram
             if (modelType === "Bi-gram"){
                 //Get values via currentWord
-                values = nGramDict[currentWord];
+                values = Array.from(nGramDict.get(currentWord)).map(function (pair) {return pair[0];});
                 //The key is simply the current word
                 setKey(currentWord)
 
@@ -163,7 +163,8 @@ export default function GeneratePassage(props){
                     //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
                     const local_key = display_text.trim().split(" ").slice(currentWordCounter, currentWordCounter + 2).toString().replace(",", " ");
                     //Get values
-                    values = nGramDict[local_key.trim()];
+                    
+                    values = Array.from(nGramDict.get(local_key.trim())).map(function (pair) {return pair[0];});
                     //Set key
                     setKey(local_key);
                 }
@@ -177,7 +178,7 @@ export default function GeneratePassage(props){
                     //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
                     const local_key = display_text.trim().split(" ").slice(currentWordCounter, currentWordCounter + 3).toString().replace(",", " ").replace(",", " ");
                     //Get values
-                    values = nGramDict[local_key.trim()];
+                    values = Array.from(nGramDict.get(local_key.trim())).map(function (pair) {return pair[0];});
                     //Set key
                     setKey(local_key);
                 }
@@ -209,10 +210,10 @@ export default function GeneratePassage(props){
     
     //If the mode of text generation has shifted back to manual, automatically generate more text
     useEffect(() => {
-        if (textGenMode === "automatic") {
+        if (textGenMode === "automatic" && nGramDict.size !== 0) {
             gen_button_clicked();
         }
-    }, [textGenMode])
+    }, [nGramDict, textGenMode])
 
     return (
         <div className = "generated-passage-section" class = "flex flex-col space-y-2 h-full w-full align-left text-left items-center justify-center bg-zinc-50 rounded-md drop-shadow-md">
@@ -268,7 +269,7 @@ export default function GeneratePassage(props){
                     ) : (
                         <div className = "container" class = "flex flex-row text-center w-full h-full space-x-2">
                             {enableButton && <button className = "generate-text" class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-gray-200 text-gray-300 font-bold rounded-md w-6/12 py-2 h-10 outline outline-1">Clear</button>}
-                            {enableButton && <button className = "random-word-choice" class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-gray-200 text-gray-300 font-bold rounded-md w-6/12 py-2 h-10 outline outline-1">Random Choice</button>}
+                            {enableButton && <button className = "random-word-choice" class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-gray-200 text-gray-300 font-bold rounded-md w-6/12 py-2 h-10 outline outline-1">Computer Choice</button>}
                             
                             {!enableButton && <button className = "generate-text" onClick = {clear_button_clicked} class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-green-900 text-white font-bold rounded-md w-6/12 py-2 h-10 outline outline-1 hover:bg-slate-700 hover:ring">Clear</button>}
                             {!enableButton && <button className = "random-word-choice" onClick = {random_word_choice} class = "flex self-center text-center align-middle text-center justify-center items-center monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs justify-end bg-red-500 text-gray-300 text-white font-bold rounded-md w-6/12 py-2 h-10 outline outline-1 hover:bg-red-800 hover:ring">Random Choice</button>}
