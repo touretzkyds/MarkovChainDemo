@@ -1,11 +1,62 @@
 import React, {useState, useEffect}from "react";
 import { useDictContext } from "./Context";
+import InfiniteScroll from "react-infinite-scroller";
+// import {FixedSizeList as List} from "react-window";
+// import AutoSizer from "react-virtualized-auto-sizer";
 
 function DisplayDict() {
     //Get variables from context
     const { inputText, setInputText, nGramDict, modelType, setModelType, 
             frequencies, setFrequencies, branchingFactor, setBranchingFactor, 
             lenDict, setLenDict, branching_factor, get_words} = useDictContext();
+
+    //For infinite dictionary scrolling implementation
+    const nDictItems = 40;
+    const [hasDictElements, setHasDictElements] = useState(true);
+    const [currentDictDisplayed, setCurrentDictDisplayed] = useState(nDictItems);
+    // const [loadDictElements, setLoadDictelements] = useState(false);
+
+    //To load additional dictionary elements if present when scroll is complete
+    const loadDictElements = () => {
+
+        //If the current elements being displayed are identical to the dictionary's length, stop
+        if (nGramDict.size == currentDictDisplayed) {
+            setHasDictElements(false);
+        //After a brief delay, load more elements
+        } else {
+            setTimeout(() => {
+                setCurrentDictDisplayed(currentDictDisplayed + nDictItems);
+            }, 1)
+        }
+    }
+
+    //Implementation allowing for aforementioned additional dict elements to be displayed
+    const displayDictElements = (element) => {
+
+        var allElements = [];
+        //Convert map to array
+        var arr = Array.from(nGramDict);
+        //Iterate
+        if (arr.length !== 0) {
+            for (var i = 0; i < Math.min(nGramDict.size, currentDictDisplayed); i++) {
+                allElements.push(
+                    <div key = {i} class = "">
+                        <strong class = "text-green-900">{reFormatText(arr[i][0])}: </strong>
+                        {Array.from(arr[i][1]).map(([item, count], index, successorArr) => (
+                            <React.Fragment key={`${arr[i][0]}-${item}`}>
+                                <li className="inline list-none">
+                                    {reFormatText(item)} (<span>{count}</span>)
+                                </li>
+                                {index < successorArr.length - 1 && <span>, </span>}
+                            </React.Fragment>
+                        ))}
+                </div>
+                )
+            }
+        }
+        return allElements;
+
+    }
 
     //When a model option is selected
     const modelSelect = (selection) => {
@@ -19,42 +70,9 @@ function DisplayDict() {
     useEffect(() => {
 
         setBranchingFactor(branching_factor(nGramDict));
-        setLenDict(Object.keys(nGramDict).length);
-        determine_frequency()
+        setLenDict(nGramDict.size);
+        //determine_frequency()
 
-    }, [nGramDict])
-
-    //For each key in the dictionary, determine its frequency and store accordingly
-    const determine_frequency = () => {
-        //Create a dictionary to store frequencies
-        const store_frequencies = {};
-        //Iterate over all the inputText values - for each, count the number of times it occurs in the values of the dictionary
-        for (const valuesList of Object.values(nGramDict)) {
-            //Get filtered words
-            const filtered_words = get_words(inputText);
-            valuesList.forEach((key) => {
-                //Set a counter
-                let num_entries = 0;
-                //Set a RegEx to match the key (more efficient for larger dictionaries)
-                //Add backslash to key in case it is a special character
-                let regex_key = key;
-                if (key.includes("?") || key.includes("!") || key.includes(".")) {
-                    regex_key = "\\" + key
-                }                
-                //Check the number of matches in the inputText string
-                filtered_words.forEach(value => {
-                    if (value === key) {num_entries++;}
-                })
-                //Store the final count in the frequencies dictionary
-                store_frequencies[key] = num_entries;
-            })
-        }
-        //Set frequencies hook
-        setFrequencies(store_frequencies);
-    }
-
-    useEffect(() => {
-        determine_frequency();
     }, [nGramDict])
 
     //Save function
@@ -74,6 +92,19 @@ function DisplayDict() {
         
         //Clean URL
         URL.revokeObjectURL(download_url);
+    }
+
+    //A function to quickly and efficiently format displayed text
+    const reFormatText = (input) => {
+        const reFormattedText = input.replace(/[.!?]/g, word => {
+            switch (word) {
+                case ".": return "<PERIOD>";
+                case "!": return "<EXCL>";
+                case "?": return "<Q>";
+                default: return word;
+            }
+        }).trim()
+        return reFormattedText;
     }
 
     return (
@@ -99,21 +130,19 @@ function DisplayDict() {
                 <div className = "stat-display" class = "flex flex-grow align-center items-center w-5/12 h-4/6 bg-white outline outline-2 outline-green-900 rounded-md">
                     <div className = "stat_display" class = "flex-auto monitor:text-sm 2xl:text-xs xl:text-xs sm:text-xs text-green-900 overflow-x-auto overflow-y-auto overflow-x"><strong>Number of Entries: </strong>{lenDict}, <strong>Branching Factor: </strong>{branchingFactor} </div>
                 </div>
-                <button className = "build-ngram-dict" onClick = {save_dictionary} class = "flex-auto monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs bg-black text-white font-bold rounded-md w-1 h-10 outline outline-1 hover:bg-slate-700 hover:ring">Save</button>
+                <button className = "build-ngram-dict" onClick = {save_dictionary} class = "flex-auto monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs bg-black text-white font-bold rounded-md w-1 h-10 outline outline-1 hover:bg-slate-700 hover:ring">Export</button>
             </div>
             
             <div className = "dict-display" class = "w-11/12 h-5/6 outline outline-slate-200 bg-white rounded-md overflow-y-auto text-left p-2 inline">
-                {Object.entries(nGramDict).map(([key, value]) => (
-                    <div key = {key} class = "">
-                        <strong class = "text-green-900">{key.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}: </strong>
-                        {value.map((item, index) => (
-                            <React.Fragment key = {index}>
-                                <li key = {index} class = "inline list-none">{item.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}{<span> ({frequencies[item]})</span>}</li>
-                                {index < value.length - 1 && <span>, </span>}
-                            </React.Fragment>
-                        ))}
-                    </div>
-                ))}
+                <InfiniteScroll
+                    pageStart = {0}
+                    loadMore = {loadDictElements}
+                    hasMore = {hasDictElements}
+                    loader = {<div className = "loading">{nGramDict.size !== 0 && nGramDict.size > currentDictDisplayed && <p>Loading...</p>}</div>}
+                    useWindow = {false}
+                >
+                    {displayDictElements(nGramDict)}
+                </InfiniteScroll>
             </div>
         </div>
     )

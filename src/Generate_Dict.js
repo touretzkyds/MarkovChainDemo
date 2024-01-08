@@ -28,8 +28,8 @@ export default function GenerateDict(props){
     const {inputText, setInputText, enableButton, setEnableButton, 
            nGramDict, setNGramDict, modelType, setModelType,
            frequencies, setFrequencies, branchingFactor, setBranchingFactor, 
-           generatedText,  setGeneratedText, wordCount, textGenMode, 
-           build_dictionary, generate_text} = useDictContext();
+           generatedText,  setGeneratedText, wordCount, tokenCount, setTokenCount,
+           textGenMode, get_words, build_dictionary, generate_text} = useDictContext();
     
     //Text provided state
     let [validText, setValidText] = useState(true);
@@ -56,11 +56,14 @@ export default function GenerateDict(props){
         setInputText(text.target.value)
         //Check if we are not currently performing manual text generation
         setEnableButton(true);
-        // if (textGenMode != "manual") {
-        //     //Enable the Re-Build Dictionary Button
-            
-        // }
     }
+
+    //To update the token count
+    useEffect(() => {
+        //Update the tokencount if the length of the words is nonzero, otherwise set to zero
+        if (inputText === "") {setTokenCount(0);}
+        else {get_words(inputText);}
+    }, [inputText])
 
     //When the title of the input Wikipedia article has been changed
     const wikiTitleChange = (title) => {
@@ -83,7 +86,6 @@ export default function GenerateDict(props){
             //Prevent default enter key behaviour and trigger import button
             event.preventDefault();
             importWikiArticle();
-
         }
     }
 
@@ -116,8 +118,6 @@ export default function GenerateDict(props){
         // Get all sections from the response
         const data = wikiResponse.data;
         console.log("WIKI RESPONSE:", wikiResponse);
-        
-        
 
         // Check if the extraction was successful
         if (data?.parse?.sections === undefined) {
@@ -191,15 +191,17 @@ export default function GenerateDict(props){
         //Verify that adequate text has been provided
         if (inputText.split(/\s+/).filter(word => word !== "").length < 2) {
             setValidText(false);
+            clearButtonClicked();
         }
-        else {setValidText(true);}
-        if (validText) {
+        else {
+            setValidText(true);
             //Update nGram dictionary
             setNGramDict(build_dictionary(inputText, modelType));
+    
             //Set enable button to false
             setEnableButton(false);
         }
-
+        
     }
 
     //Handle when the clear button has been clicked (simply remove the input text from the first pane)
@@ -209,7 +211,7 @@ export default function GenerateDict(props){
         
         //Set all other states to their default values
         setInputText("");
-        setNGramDict({});
+        setNGramDict(new Map());
         setBranchingFactor(0);
         setWikiArticleTitle("🔍Search for a Wikipedia Article.");
         setGeneratedText("Enter text or import in pane one first.");
@@ -224,17 +226,25 @@ export default function GenerateDict(props){
         if (!enableButton) {
             //Trigger dictionary generation
             setNGramDict(build_dictionary(inputText, modelType));
+        }
+    }, [modelType])
+
+    useEffect(() => {
+        if (wikiImported) {
+            //Trigger dictionary generation
+            setNGramDict(build_dictionary(inputText, modelType));
             //Set Wikipedia Import flag to false
             setWikiImported(false);
         }
-    }, [modelType, wikiImported])
+    }, [wikiImported])
 
     //Generate Text when the dictionary is altered. 
     useEffect(() => {
         //Check to verify that manual text generation has not taken place and that the clear button has not been clicked
         //Also check that we are not in the state just after the clear button has been clicked
         //Finally, verify that the frequencies dictionary has been built
-        if (textGenMode != "manual" && Object.keys(nGramDict).length !== 0 && Object.keys(frequencies).length !== 0) {
+        if (textGenMode != "manual" && nGramDict.size !== 0 && Object.keys(frequencies).length !== 0) {
+            console.log("N GRAM DICT PRIOR TO TEXT GENERATION:", nGramDict);
             setGeneratedText(generate_text(nGramDict, modelType, wordCount));
         }
     }, [nGramDict, wordCount, frequencies])
@@ -246,12 +256,13 @@ export default function GenerateDict(props){
                 <div className = "header-and-import" class = "flex-auto flex-col w-6/12 space-y-2">
                     <div className = "text-entrance-text" class = "flex h-2/3 monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs font-bold">[1] Paste in Text or Import from Wikipedia.</div>
                     <div className = "button-options" class = "flex flex-row w-full h-full space-x-2">
+                        <div className = "token-counter" class = "flex-auto w-3/12 text-xs text-center">Token Count: {tokenCount}</div>
                         { enableButton ? (
-                            <button className = "build-ngram-dict" onClick = {rebuild_dict_clicked} class = "flex-auto w-9/12 bg-black text-white font-bold rounded-md outline outline-1 hover:bg-slate-700 hover:ring monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Re-Build Dictionary</button>
+                            <button className = "build-ngram-dict" onClick = {rebuild_dict_clicked} class = "flex-auto w-6/12 bg-black text-white font-bold rounded-md outline outline-1 hover:bg-slate-700 hover:ring monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Re-Build Dictionary</button>
                         ) : (
                             <button className = "build-ngram-dict" class = "flex-auto w-6/12 bg-gray-200 text-gray-300 font-bold rounded-md outline outline-1 monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Re-Build Dictionary</button>
                         )}
-                        <button className = "clear-button" onClick = {clearButtonClicked} class = "flex-auto w-3/12 bg-zinc-50 outline outline-1 rounded-md font-bold text-black hover:bg-slate-200 hover:ring monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Clear</button>
+                        <button className = "clear-button" onClick = {clearButtonClicked} class = "flex-auto w-2/12 bg-zinc-50 outline outline-1 rounded-md font-bold text-black hover:bg-slate-200 hover:ring monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Clear</button>
                     </div>
                 </div>
                 <div className = "wikipedia-pane" class = "flex flex-row w-7/12 h-full rounded-md space-x-2 items-end align-right text-center justify-end">
