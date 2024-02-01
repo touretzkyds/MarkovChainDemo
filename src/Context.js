@@ -205,6 +205,20 @@ export const DictContextProvider = ({ children }) => {
     const [enableNextWord, setEnableNextWord] = useState(false);
     const [clearButtonClicked, setClearButtonClicked] = useState(false);
 
+    // ======== HELPER FUNCTIONS ========
+
+    //A function to quickly and efficiently format displayed text
+    const reFormatText = (input) => {
+        const reFormattedText = input.replace(/[.!?]/g, word => {
+            switch (word) {
+                case ".": return "<PERIOD>";
+                case "!": return "<EXCL>";
+                case "?": return "<Q>";
+                default: return word;
+            }
+        }).trim()
+        return reFormattedText;
+    }
 
     // ======== ALL PREPROCESSING FUNCTIONS (REFACTORED INTO JSX FROM PYTHON) ========
 
@@ -213,7 +227,7 @@ export const DictContextProvider = ({ children }) => {
     const get_words = (text_string) => {
 
         //Characters to be removed
-        const remove_chars = "—,:;()\"*^→'\n\t"
+        const remove_chars = "—,:;()\"*^→'{}[]+=\n\t"
 
         //Characters to replace with a space
         const spacer_chars = ".?!"
@@ -695,7 +709,9 @@ export const DictContextProvider = ({ children }) => {
             setEnableNextWord,
             clearButtonClicked,
             setClearButtonClicked,
-            //Functions
+            //Helper Functions
+            reFormatText,
+            //Markov Chain Implementation Functions
             get_words,
             make_bigram_dict,
             make_trigram_dict,
