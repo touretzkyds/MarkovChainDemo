@@ -178,28 +178,38 @@ export const DictContextProvider = ({ children }) => {
     const [nGramDict, setNGramDict] = useState(new Map());
     const [branchingFactor, setBranchingFactor] = useState(0);
     const [lenDict, setLenDict] = useState(0);
+
     //Enabling the Re-build dictionary button
     let [enableButton, setEnableButton] = useState(false);
+
     //Set model type
     const [modelType, setModelType] = useState("Bi-gram");
+
     //To store frequency of words in the dictionary
     const [frequencies, setFrequencies] = useState({});
+
     //Set Text Generation Variables
     const [generatedText, setGeneratedText] = useState("");
+    const [manualGeneratedText, setManualGeneratedText] = useState("");
+
     //Set word count
     const [wordCount, setWordCount] = useState(100);
     //Set token count (length of words dictionary)
     const [tokenCount, setTokenCount] = useState(0);
+
     //Mode of text generation
     const [textGenMode, setTextGenMode] = useState("automatic");
+
     //For automatic visualizations
     const [autoGraphAllowed, setAutoGraphAllowed] = useState(true);
     //Current word, key, and word options for manual text generation
     const [currentWord, setCurrentWord] = useState("")
+
     //To keep track of the position of the current word
     const [currentWordCounter, setCurrentWordCounter] = useState(0);
     const [key, setKey] = useState("")
     const [wordOptions, setWordOptions] = useState([])
+
     //Keep track of nodes that have been added to the manual visualization graph (all selected)
     const [keysAdded, setKeysAdded] = useState([]);
     const [enableNextWord, setEnableNextWord] = useState(false);
@@ -227,7 +237,7 @@ export const DictContextProvider = ({ children }) => {
     const get_words = (text_string) => {
 
         //Characters to be removed
-        const remove_chars = "—,:;()\"*^→'{}[]+=\n\t"
+        const remove_chars = "—,:;()\"*^→{}[]+=\n\t"
 
         //Characters to replace with a space
         const spacer_chars = ".?!"
@@ -687,6 +697,8 @@ export const DictContextProvider = ({ children }) => {
             setFrequencies,
             generatedText,
             setGeneratedText,
+            manualGeneratedText,
+            setManualGeneratedText,
             wordCount,
             setWordCount,
             tokenCount,

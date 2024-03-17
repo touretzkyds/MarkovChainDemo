@@ -74,11 +74,11 @@ function DisplayDict() {
         //determine_frequency()
 
     }, [nGramDict])
-
+    
     //Save function
     const save_dictionary = () => {
         //Conver to JSON
-        const json_obj = JSON.stringify(nGramDict);
+        const json_obj = JSON.stringify([...nGramDict]);
         //Blob
         const blob = new Blob([json_obj], {type : "application/json"});
         //Download URL

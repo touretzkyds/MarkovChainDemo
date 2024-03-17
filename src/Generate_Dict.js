@@ -89,6 +89,14 @@ export default function GenerateDict(props){
         }
     }
 
+    //For when the Wikipedia input area is clicked
+    const wikiInputClicked = () => {
+        if (wikiArticleTitle === "🔍Search for a Wikipedia Article.") {
+            clearButtonClicked()
+        }
+        setWikiArticleTitle("");
+    }
+
     // Function to fetch the content of a specific section
     const fetchSectionContent = async (formattedTitle, sectionIndex) => {
         try {
@@ -269,12 +277,12 @@ export default function GenerateDict(props){
                     <div className = "wikipedia-outline" class = "flex flex-row w-11/12 h-full rounded-md outline outline-2 outline-green-800 px-2 py-2 space-x-2 items-center align-center text-center justify-center">
                         {wikiImportSuccessful ? (
                             <div className = "wikipedia-import-successful" class = "flex flex-row items-center align-center justify-center space-x-2 w-full h-full">
-                                <textarea className = "wiki-search-area" onChange = {wikiTitleChange} onKeyDown = {wikiEnterButton} class = "flex text-xs w-8/12 h-full overflow-x-auto overflow-hidden text-center items-center justify-center overflow-none rounded-lg outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500" value = {wikiArticleTitle}></textarea>
+                                <textarea className = "wiki-search-area" onChange = {wikiTitleChange} onKeyDown = {wikiEnterButton} onClick = {wikiInputClicked} class = "flex text-xs w-8/12 h-full overflow-x-auto overflow-hidden text-center items-center justify-center overflow-none rounded-lg outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500" value = {wikiArticleTitle}></textarea>
                                 <button className = "import-from-wiki" onClick = {importWikiArticle} class = "flex w-3/12 h-full rounded-md font-bold bg-green-900 text-white text-center align-center items-center self-center justify-center monitor:text-sm 2xl:text-sm xl:text-xs sm:text-xs hover:bg-slate-700 hover:ring">Import</button> 
                             </div>   
                         ) : (
                             <div className = "wikipedia-import-successful" class = "flex flex-row items-center align-center justify-center space-x-2 w-full h-full">
-                                <textarea className = "wiki-search-area" onChange = {wikiTitleChange} onKeyDown = {wikiEnterButton} class = "flex text-xs w-8/12 h-full overflow-x-auto overflow-hidden text-center items-center justify-center overflow-none rounded-lg outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500" value = {wikiArticleTitle}></textarea>
+                                <textarea className = "wiki-search-area" onChange = {wikiTitleChange} onKeyDown = {wikiEnterButton} onClick = {wikiInputClicked} class = "flex text-xs w-8/12 h-full overflow-x-auto overflow-hidden text-center items-center justify-center overflow-none rounded-lg outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500" value = {wikiArticleTitle}></textarea>
                                 <button className = "import-from-wiki" class = "flex w-3/12 h-full rounded-md font-bold bg-gray-200 text-gray-300 text-center align-center items-center self-center justify-center monitor:text-sm 2xl:text-sm xl:text-xs sm:text-xs">Import</button> 
                             </div>  
                             
