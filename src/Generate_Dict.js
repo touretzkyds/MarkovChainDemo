@@ -96,6 +96,14 @@ export default function GenerateDict(props){
         }
     }
 
+    //For when the Wikipedia input area is clicked
+    const wikiInputClicked = () => {
+        if (wikiArticleTitle === "🔍Search for a Wikipedia Article.") {
+            clearButtonClicked()
+        }
+        setWikiArticleTitle("");
+    }
+
     // Function to fetch the content of a specific section
     const fetchSectionContent = async (formattedTitle, sectionIndex) => {
         try {

@@ -8,7 +8,7 @@ function DisplayDict() {
     //Get variables from context
     const { inputText, setInputText, nGramDict, modelType, setModelType, 
             frequencies, setFrequencies, branchingFactor, setBranchingFactor, 
-            lenDict, setLenDict, branching_factor, get_words} = useDictContext();
+            lenDict, setLenDict, reFormatText, branching_factor, get_words} = useDictContext();
 
     //For infinite dictionary scrolling implementation
     const nDictItems = 40;
@@ -74,11 +74,11 @@ function DisplayDict() {
         //determine_frequency()
 
     }, [nGramDict])
-
+    
     //Save function
     const save_dictionary = () => {
         //Conver to JSON
-        const json_obj = JSON.stringify(nGramDict);
+        const json_obj = JSON.stringify([...nGramDict]);
         //Blob
         const blob = new Blob([json_obj], {type : "application/json"});
         //Download URL
@@ -92,19 +92,6 @@ function DisplayDict() {
         
         //Clean URL
         URL.revokeObjectURL(download_url);
-    }
-
-    //A function to quickly and efficiently format displayed text
-    const reFormatText = (input) => {
-        const reFormattedText = input.replace(/[.!?]/g, word => {
-            switch (word) {
-                case ".": return "<PERIOD>";
-                case "!": return "<EXCL>";
-                case "?": return "<Q>";
-                default: return word;
-            }
-        }).trim()
-        return reFormattedText;
     }
 
     return (

@@ -5,7 +5,7 @@ export default function ManualTextOptions(props){
     //Get dictionary, model type, generated text, and word count
     const {nGramDict, enableButton, setEnableButton, 
            modelType, textGenMode, generatedText, 
-           setGeneratedText, currentWord, setCurrentWord, 
+           setGeneratedText, reFormatText, currentWord, setCurrentWord, 
            key, setKey, enableNextWord, setEnableNextWord, 
            wordOptions, keysAdded, setKeysAdded, setWordOptions} = useDictContext();
 
@@ -18,11 +18,11 @@ export default function ManualTextOptions(props){
                     <div key = {index}>
                         {word === "End of chain" ? (
                             <button key = {index} class = "flex w-full shadow-md text-center items-center justify-center rounded-3xl p-2 bg-zinc-50 font-bold text-red-500">{
-                                word.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()
+                                reFormatText(word)
                             }</button>
                         ) : (
                             <button key = {index} onClick = {props.word_chosen} class = "flex w-full shadow-md text-center items-center justify-center rounded-3xl p-2 bg-zinc-50 font-bold text-red-500">{
-                                word.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()
+                                reFormatText(word)
                             }</button>
                         )}
                     </div>

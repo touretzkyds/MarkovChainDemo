@@ -1,553 +1,699 @@
-//Import libraries
 import React, {useState, useEffect, useRef} from "react";
-//For visualizations
 import CytoscapeComponent from "react-cytoscapejs";
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
-//For accessing shared component variables (such as the current word and options)
 import { useDictContext } from "./Context";
+import { scryRenderedDOMComponentsWithClass } from "react-dom/test-utils";
+import { render } from "@testing-library/react";
 
-//Use the dagre layout
 cytoscape.use(dagre);
 
-//Define visualizations function
-export default function Visualizations(props) {
+export default function Visualizations() {
 
-//     // =========== ALL STATE AND INITIALIZATION VARIABLES ===========
+    //Get variables needed from the shared context
+    const {nGramDict, modelType, textGenMode, setTextGenMode,
+           generatedText, setGeneratedText, manualGeneratedText, setManualGeneratedText, reFormatText, generate_text,
+           currentWord, setCurrentWord, key, setKey, 
+           enableNextWord, setEnableNextWord, keysAdded, setKeysAdded,
+           wordOptions, setWordOptions, wordCount, setWordCount,
+           clearButtonClicked, setClearButtonClicked} = useDictContext();
 
-//     //Get variables needed from the shared context
-//     const {nGramDict, modelType, textGenMode, setTextGenMode,
-//            generatedText, setGeneratedText, generate_text,
-//            currentWord, setCurrentWord, key, setKey, 
-//            enableNextWord, setEnableNextWord, keysAdded, setKeysAdded,
-//            wordOptions, setWordOptions, wordCount, setWordCount,
-//            clearButtonClicked, setClearButtonClicked} = useDictContext();
+    //State variable to check whether the current display has successfully been reset
+    const [isReset, setIsReset] = useState(false);
 
-//     //State variable to check whether the current display has successfully been reset
-//     const [isReset, setIsReset] = useState(false);
+    //Variables to store the layout, layout type, and a flag to signal whether the layout has been built
+    const [layout, setLayout] = useState();
+    const [layoutName, setLayoutName] = useState("preset");
+    const [layoutBuilt, setLayoutBuilt] = useState(false);
+
+    //Declare a state variable to house the graph and keep track of all added nodes
+    const [graphData, setGraphData] = useState([]);
+    const [nodesAdded, setNodesAdded] = useState([]);
+
+    //Flag for whether the graph has been re-rendered at the end of text generation
+    const [graphReRendered, setGraphReRendered] = useState(false);
+    //Flag to determine whether the graph has finished rendering (automatic)
+    const [autoGraphRendered, setAutoGraphRendered] = useState(false);
+
+    //Flag to determine whether the manual graph has been rendered for each instance of words
+    const [manualRendered, setManualRendered] = useState(false);
+
+    //Set current reference of graph div to null
+    let graphRef = React.useRef(null);
+
+    //CONSTANTS FOR PANE FOUR RENDERING (maximum x and y bounds)
+
+    //Maximum height of graph away from central axis for both successor layers (vertically and horizontally)
+    const maxDeviationYL1 = -350;
+    const maxDeviationXL1 = 120;
+    let maxDeviationYL2 = maxDeviationYL1 - 50;
+    let maxDeviationXL2 = maxDeviationXL1 + 40;
     
-//     //Variables to store the layout, layout type, and a flag to signal whether the layout has been built
-//     const [layout, setLayout] = useState();
-//     const [layoutName, setLayoutName] = useState("dagre");
-//     const [layoutBuilt, setLayoutBuilt] = useState(false);
+    //Node width and height
+    const nodeWidth = 100;
+    const nodeHeight = 50;
 
-//     //Declare a state variable to house the graph and keep track of all added nodes
-//     const [graphData, setGraphData] = useState([]);
-//     const [nodesAdded, setNodesAdded] = useState([]);
+    //Jitter parameters
+    const jitterX = 20;
+    const jitterY = 9;
 
-//     //Flag for whether the graph has been re-rendered at the end of text generation
-//     const [graphReRendered, setGraphReRendered] = useState(false);
-//     //Flag to determine whether the graph has finished rendering (automatic)
-//     const [autoGraphRendered, setAutoGraphRendered] = useState(false);
-//     //Flag for whether all pending nodes have been added - this is a signal for the previous option removal process to begin
-//     const [pendingNodesAdded, setPendingNodesAdded] = useState(false);
+    //Bounding box width padding parameters (1 times the node width, 2 times the node width, 3 times, etc.)
+    const boundingBoxPadding = 1;
 
-//     //Flag to allow or disable backwards connections (prevents drawing multiple connections per repetition)
-//     const [biBackwardsCnxAllowed, setBiBackwardsCnxAllowed] = useState(false);
-//     //Flag to ensure that tri-and-tetra-gram models are only adding single connections between nodes at a time (again to prevent multiple re-draws)
-//     const [triTetraCnxAllowed, setTriTetraCnxAllowed] = useState(false);
+    //Set graph style parameters
+    const graphStyle = [
+        {
+            //Style parameters for nodes
+            selector: "node",
+            style : {
+                'background-color': 'transparent', // Node background color
+                "background-opacity" : 0,
+                'label': 'data(label)', // Display the node's label
+                'shape': 'ellipse', // Node shape
+                'width': nodeWidth, // Node width
+                'height': nodeHeight, // Node height
+                'font-size': '20px', // Label font size
+                'text-valign': 'center', // Vertical alignment of label
+                'text-halign': 'center', // Horizontal alignment of label
+                'text-wrap' : 'wrap',
+                'text-max-width' : "95px",
+                "color" : "black"
+            }
+        },
+        {
+            //Style parameters for edges
+            selector: 'edge', // Apply the style to all edges
+            style: {
+                'width': 5, // Edge width
+                'line-color': 'black', // Edge color
+                "curve-style" : "bezier",
+                'target-arrow-shape': 'triangle',
+                'target-arrow-color' : 'black',
+                'source-arrow-color' : 'black'
+            }
+        }
+    ]
 
-//     //Set current reference of graph div to null
-//     let graphRef = React.useRef(null);
+    // =========== ALL FUNCTIONS AND EFFECTS ===========
 
-//     //Create string to house manually generated text if present
-//     const [manualText, setManualText] = useState("");
+    // RESET FUNCTIONS
 
-//     //Create a counter variable to track (for automatic text generation mode) what word of generatedText is currently being rendered on the graph
-//     const [genCounter, setGenCounter] = useState(0);
+    //Declare a reset function to change all parameters back to default values upon component mount or mode change
+    const resetGraph = () => {
 
-//     //A flag to determine whether all non-key wordOptions for the previous keys have been removed
-//     let prevKeyOptionsRemoved = true;
-    
-//     //Set graph style parameters
-//     const graphStyle = [
-//         {
-//             //Style parameters for nodes
-//             selector: "node",
-//             style : {
-//                 'background-color': '#ADD8E6', // Node background color
-//                 'label': 'data(label)', // Display the node's label
-//                 'shape': 'ellipse', // Node shape
-//                 'width': '100px', // Node width
-//                 'height': '100px', // Node height
-//                 'font-size': '20px', // Label font size
-//                 'text-valign': 'center', // Vertical alignment of label
-//                 'text-halign': 'center', // Horizontal alignment of label
-//                 'text-wrap' : 'wrap',
-//                 'text-max-width' : "100px"
-//             }
-//         },
-//         {
-//             //Style parameters for edges
-//             selector: 'edge', // Apply the style to all edges
-//             style: {
-//                 'width': 5, // Edge width
-//                 'line-color': 'black', // Edge color
-//                 "curve-style" : "bezier",
-//                 'target-arrow-shape': 'triangle',
-//                 'target-arrow-color' : 'black',
-//                 'source-arrow-color' : 'black'
-//             }
-//         }
-//     ]
+        //Set the isReset flag to false
+        setIsReset(false);
 
-//     // =========== ALL FUNCTIONS AND EFFECTS ===========
+        //Reset layout and build status (name remains constant)
+        setLayout();
+        setLayoutBuilt(false);
 
-//     // RESET FUNCTIONS
-
-//     //Declare a reset function to change all parameters back to default values upon component mount or mode change
-//     const resetGraph = () => {
-
-//         //Set the isReset flag to false
-//         setIsReset(false);
-
-//         //Reset layout and build status (name remains constant)
-//         setLayout();
-//         setLayoutBuilt(false);
-
-//         //Empty current graph and list of both added keys (stored in context) and nodes
-//         setGraphData([]);
-//         setKeysAdded([]);
-//         setNodesAdded([]);
-//         setWordOptions([]);
-//         setKey("");
-//         setCurrentWord("");
-
-//         //Set re-rendering and colour-related flags for the graph to false
-//         setGraphReRendered(false);
-//         setAutoGraphRendered(false);
-
-//         //Set Bi-gram backwards connection and Tri-and-Tetra-gram branch connection modulating flags to false
-//         setBiBackwardsCnxAllowed(false);
-//         setTriTetraCnxAllowed(false);
-
-//         //If we are in manual mode, set the manual text to be blank
-//         if (textGenMode === "manual") {setManualText("")};
-
-//         //Set the automatic text counter to zero
-//         setGenCounter(0);
+        //Empty current graph and list of both added keys (stored in context) and nodes
+        setGraphData([]);
+        setKeysAdded([]);
+        setNodesAdded([]);
+        //setWordOptions([]);
+        setKey("");
+        setCurrentWord("");
         
-//     }
+        //Set re-rendering and colour-related flags for the graph to false
+        setGraphReRendered(false);
+        setAutoGraphRendered(false);
 
-//     //When the component first mounts and whenever the text generation mode changes, reset the graph
-//     //Do so additionally when the model type changes
-//     useEffect(() => {
-//         resetGraph();
-//     }, [textGenMode, modelType, nGramDict])
-
-//     //Also reset the graph if the mode of generation is automatic and the generated text contant has changed
-//     useEffect(() => {
-//         if (textGenMode === "automatic") {resetGraph();}
-//     }, [generatedText])
-//     //Reset the graph additionally when the clear button in pane three has been clicked - this is only possible for manual text generation mode, but the execution is identical
-//     useEffect(() => {
-//         if (clearButtonClicked) {
-//             resetGraph();
-//             setClearButtonClicked(false);
-//         }
-//     }, [clearButtonClicked])
-
-//     //If the layout has not been yet defined or built, and the graph is currently empty, set the reset flag to true - all variables are now at their default position
-//     useEffect(() => {
-//         //Verify that the aforementioned is the case
-//         if (layout === undefined && layoutBuilt === false && graphData.length === 0) {
-//             setIsReset(true);
-//         }
-//     }, [layout, layoutBuilt, graphData, modelType])
-
-//     // GRAPH DATA MANIPULATION FUNCTIONS
-//     useEffect(() => {
-//         console.log("KEYS ADDED:", keysAdded);
-//     }, [keysAdded]);
-
-//     //A function to build the next node of a graph, assuming that a starting key is present
-//     const buildGraph = () => {
-//         console.log("KEY", key);
-//         //Create a local version of keysAdded for use; then set at the end of the function
-//         let localKeysAdded = [...keysAdded];
-//         console.log("LOCAL KEYS ADDED:", localKeysAdded);
-
-//         // console.log("KEY:", key);
-//         //If the key is not already present on the graph, add it
-//         if (!nodesAdded.includes(key) && !key.split(" ").includes("undefined")) { 
-//             //Create new data point
-//             console.log("KEY BEING ADDED:", key);
-//             let newGraphPoint = {data : {id : key, label : key.replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim()}, position : { x:Math.random() * 100 + 50, y: Math.random() * 100 + 50}};
-//             //Add point to the graph
-//             setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
-//             //Track point (add to list of all added nodes)
-//             setNodesAdded(existingNodes => [...existingNodes, key]);
-//         }
-
-//         //Check to see if the current key has been duplicated previously - if so, we must add a seperate backwards connection after adding regular connections.
-//         const nDuplicateKeys = keysAdded.filter((graph_key) => (graph_key === key)).length;
-
-//         //React sometimes renders windows multiple times. To prevent multiple renders from adding multiple nodes, ensure that two identical consecutive nodes cannot be placed
-//         //In other words - when tracking keys in the list of current keys, verify that the previous one is not identical to the current one
-//         //Verify that the previous key is not identical to the current key
-//         if (localKeysAdded.length < 1 && !key.split(" ").includes("undefined")) {localKeysAdded.push(key);}
-//         else if (localKeysAdded[localKeysAdded.length - 1] !== key && !key.split(" ").includes("undefined")) {localKeysAdded.push(key)}
-
-//         //Tri-and-Tetra-gram models should always add a branch between the previous and current key
-//         //This should be done ONCE per key change (thus, employ the flag)
-//         //Verify that the current key is NOT a duplicate of the previous (otherwise no connection is needed nor possible)
-//         // console.log("CONNECTION ALLOWED:", triTetraCnxAllowed);
-//         // console.log("NUMBER OF DUPLICATE KEYS:", nDuplicateKeys);
-//         // console.log("KEYS ADDED LENGTH:", keysAdded.length);
-//         if ((modelType === "Tri-gram" || modelType === "Tetra-gram") && triTetraCnxAllowed && nDuplicateKeys < 1 && genCounter > 1) {
-
-//             //Establish branch connection between previous and current key
-//             let newTriTetraBranch = {data : {source : localKeysAdded[localKeysAdded.length - 2], target : key, label : localKeysAdded[localKeysAdded.length - 2] + key}};
-//             console.log("BRANCH ADDED:", newTriTetraBranch);
-//             //Add new branch to existing graph
-//             setGraphData(existingGraph => [...existingGraph, newTriTetraBranch]);
-            
-//             //Disable additional branches between nodes. This is re-enabled once the key changes and exists to prevent adding identical branches multiple times.
-//             setTriTetraCnxAllowed(false);
-            
-//         }
-
-//         //If duplicates are present add a backwards connection between the current key and the previous one
-//         //Verify that backwards connections are allowed
-//         if (nDuplicateKeys >= 1 && biBackwardsCnxAllowed) {
-//             //Create backwards connection branch
-//             let backwardsCnxBranch = {data : {source : localKeysAdded[localKeysAdded.length - 1], target : key, label : localKeysAdded[localKeysAdded.length - 2] + key + "BackwardsCnx"}};
-            
-//             //Add to graph
-//             setGraphData(existingGraph => [...existingGraph, backwardsCnxBranch]);
-//             //Disable future backwards connections until a new key is added
-//             setBiBackwardsCnxAllowed(false);
-//         }
+        //If we are in manual mode, set the manual text to be blank
+        //if (textGenMode === "manual") {setManualText("")};
         
-//         //Iterate through all potential selection options (child nodes) for this key and add to the graph
-//         //Do this only if not the final word in the sentence. If this is the last word, simply add another node that states "END OF CHAIN".
+    }
+    
+    //The graph display should be updated when the dictionary and generated text changes
+    //Note that the generated text is modified in both automatic and manual text generation modes
+    //We only want to update the graph under automatic text generation mode.
+    //So, when in automatic text generation mode, graph updates should be triggered by the generated text.
+    //And, in manual mode, they should be triggered by the n-gram dictionary itself.
+    useEffect(() => {
+        if (textGenMode === "manual") {resetGraph();}
+    }, [wordOptions])
+    
+    useEffect(() => {
+        if (textGenMode === "automatic") {resetGraph();}
+    }, [generatedText])
 
-//         //For Tri-and-Tetra-gram models, the limit should be genCounter - 1 (the second last word) and genCounter - 2 (the third last word) respectively as the key
-//         //These models look ahead 1 and 2 keys respectively
-//         let upperBound = genCounter;
-//         if (modelType === "Tri-gram") {upperBound += 1;}
-//         else if (modelType === "Tetra-gram") {upperBound += 2;}
+    // useEffect(() => {
+    //     resetGraph();
+    // }, [textGenMode])
 
-//         if (generatedText.split(" ").length > upperBound) {
-//             // console.log("GENERATED WORD OPTIONS:", wordOptions);
-//             wordOptions.forEach(word => {
-//                 //Verify that the respective node is not already present on the graph
-//                 if (!nodesAdded.includes(word)) {
-    
-//                     //Create a label variable. This will be changed depending on the model type
-//                     let label = word;
-    
-//                     //If the current model is a Tri-or-Tetra-gram, the label must include the previous key and previous two keys respectively
-//                     if (modelType === "Tri-gram") {
-//                         label = key.split(" ").slice(-1).toString() + " " + label;
-//                     } else if (modelType === "Tetra-gram") {
-//                         label = key.split(" ").slice(-2).toString() + " " + label;
-//                     }
-    
-//                     //Replace all commas and punctuation marks - the latter with specialized tokens
-//                     label = label.replace(",", " ").replace(".", "<PERIOD>").replace("!", "<EXCL>").replace("?", "<Q>").trim();
-                    
-//                     //Add both the node word and the branch between the current key and the node word to the graph
-//                     let newWordOption = {data : {id : word, label : label}, position : { x:Math.random() * 2000 + 50, y: Math.random() * 2000 + 50}};
-//                     setGraphData(existingGraph => [...existingGraph, newWordOption]);
-    
-//                     //Track word in list of added nodes
-//                     //Add the non-parsed (non-tokenized) variants of the words - for instance, add "." instead of "<PERIOD>"
-//                     setNodesAdded(existingNodes => [...existingNodes, word]);
-//                     let newKeyWordBranch = { data : {source : key, target : word, word : key + word}};
-                    
-//                     setGraphData(existingGraph => [...existingGraph, newKeyWordBranch]);
+    //Reset the graph additionally when the clear button in pane three has been clicked - this is only possible for manual text generation mode, but the execution is identical
+    useEffect(() => {
+        if (clearButtonClicked) {
+            //resetGraph();
+            setClearButtonClicked(false);
+        }
+    }, [clearButtonClicked])
+
+
+    //If the layout has not been yet defined or built, and the graph is currently empty, set the reset flag to true - all variables are now at their default position
+    useEffect(() => {
+        //Verify that the aforementioned is the case
+        if (layout === undefined && layoutBuilt === false && graphData.length === 0) {
+            setIsReset(true);
+        }
+    }, [layout, layoutBuilt, graphData])
+
+    //Function to render a given layer of successors, called upon each iteration at a time
+
+
+    //Function to build graph based on dictionary
+    const buildGraph = () => {
+
+        //Set keys array
+        let dictArr = Array.from(nGramDict);
+        const dictKeys = dictArr.map(function (pair) {return pair[0];});
+
+        //Set an array to track all added nodes
+        let allAddedNodes = [];
+
+        //If the text generation mode is manual, pick the start key based on the final keys of the generated text if they exist
+        let startKey = "";
+
+        if (textGenMode === "manual") {
+            
+            //Based on the model type, decide the final n words to check
+            let n = 1;
+            if (modelType === "Tri-gram") {n = 2;}
+            else if (modelType === "Tetra-gram") {n = 3;}
+            
+            //Check to see if the generated text is long enough, if not, then use as start key without additional concerns
+            if (true || generatedText.trim(" ").split(" ").length <= n) {
+                startKey = generatedText.trim(" ").split(" ").slice(-n).join(" ");
+            }
+            //If the generated text is longer, however, the start key will be two n behind
+            else {
+                let endBound = -n;
+                if (n >= 2) {endBound = -n + 1}
+                startKey = generatedText.trim(" ").split(" ").slice(-2 * n, endBound).join(" ");
+            }
+            
+            startKey = startKey.trim(" ");
+
+            if (n === 1 && startKey.trim(" ").split(" ").length >= 2) {
+                startKey = startKey.trim(" ").split(" ")[0]
+            }
+            //Set as current word
+            //setCurrentWord(startKey);
+
+            //Set the manual rendered flag as true
+            setManualRendered(true);
+
+        } else {
+            //Otherwise, pick a word from the dictionary at random, add to graph (if not already present) and added node list
+            startKey = dictKeys[Math.floor(Math.random() * dictKeys.length)];
+        }
+
+        if (startKey === undefined || startKey === null || startKey === "") {return}
+
+        if (!startKey.split(" ").includes("undefined")) {
+
+            //Place point at (0, 0)
+            let newGraphPoint = {data : {id : reFormatText(startKey), label : reFormatText(startKey)}, position : {x:Math.random()}};
+            setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+            setNodesAdded(existingNodes => [...existingNodes, startKey]);
+            allAddedNodes.push(startKey);
+        }
+
+        //Iterate through each successor word
+        let successorsL1 = Array.from(nGramDict.get(startKey));
+        successorsL1 = successorsL1.map(function (pair) {return pair[0];})
+
+        //Array of all L1 successor IDs (needed for the branches)
+        let successorIDsL1 = []
+
+        //Current x-coordinate of L1 graph
+        let xCoordinateL1 = maxDeviationXL1;
+        //Y-coord of L1 graph
+        let yCoordinateL1 = maxDeviationYL1;
+
+        //Counter to keep track of vertical nodes stacked at any given time
+        let counterL1 = 0;
+        //Counter to keep track of the current column being rendered
+        let columnCounterL1 = 0;
+
+        //Determine successor length
+        let successorLength = successorsL1.length;
+        let renderSecondOrderSuccessors = successorLength > 5 ? false : true;
+        let maxFirstOrderSuccessors = renderSecondOrderSuccessors ? Math.min(5, successorLength) : successorLength;
+
+        // //If we are in manual text generation mode and the length of the text is the length of one key (we are on the first word), only display first order successors
+        // if (textGenMode === "manual") {
+        //     let genTextLen = generatedText.trim(" ").split(" ").length;
+        //     if ((modelType === "Bi-gram" && genTextLen === 1) || (modelType === "Tri-gram" && genTextLen === 2) || (modelType === "Tetra-gram" && genTextLen === 3)) {
+        //         renderSecondOrderSuccessors = false;
+        //     }
+        // }
+
+        //Log the positions of all of the first order successors (to aid in generating the second-order bounding box heights)
+        let allFirstOrderPositions = [];
+
+        //Array to keep track of maximum widths of each row for second-order successors (needed for bounding box generation)
+        let maxWidths = [];
+
+        //Array to keep track of the number of second-order columns for each row, if any
+        let L2ColumnsPerRow = [];
+
+        //Array to keep track of column size for each set of L2 successors
+        let columnSizes = [];
+
+        //Array to track length of each second order successor tree - needed for determining if a box must be drawn
+        let successorL2Lengths = [];
+
+        for (var i = 0; i < maxFirstOrderSuccessors; i++) {
+
+            //Get value
+            let unformattedSuccessor = successorsL1[i];
+            let successor = reFormatText(unformattedSuccessor);
+            
+            //Set to starting node position + 50 and subtract by i * (50/2) until four nodes have been added; then, shift x by another 50 and repeat the process
+            //Do the same for the nested loop
+
+            //Node
+            if (counterL1 % 5 == 0) {
+                xCoordinateL1 += maxDeviationXL1;
+                yCoordinateL1 = maxDeviationYL1;
+                counterL1 = 0;
+
+                //Increment the column counter
+                columnCounterL1++;
+
+            }
+
+            //Determine the maximum number of nodes for this column
+            //If in a column where filling all five nodes is possible, do so.
+            //Otherwise, if we are on the final column, leverage the remainder
+            let maxColumnNodes = 0;
+            if (columnCounterL1 < (maxFirstOrderSuccessors / 5)) {maxColumnNodes = 5;}
+            else if (maxFirstOrderSuccessors % 5 == 0) {maxColumnNodes = 5;}
+            else {maxColumnNodes = maxFirstOrderSuccessors % 5;}
+
+            yCoordinateL1 += (Math.abs(maxDeviationYL1) * 2 / (maxColumnNodes + 1));
+
+            //Check how many times the sucessor as already been added
+            let successorCount = allAddedNodes.filter(node => node === successor).length.toString();
+
+            //Generate a node label depending on the model type
+            let nodeLabel = successor;
+            if (modelType === "Tri-gram") {nodeLabel = reFormatText(startKey.split(" ")[startKey.split(" ").length - 1] + " " + successor);}
+            else if (modelType === "Tetra-gram") {nodeLabel = reFormatText(startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + successor);}
+
+            //Add jitter if second-order sucessors are not being rendered
+            if (!renderSecondOrderSuccessors) { //&& maxFirstOrderSuccessors > 1
+                let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x: xCoordinateL1 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL1 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};
+                setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+            } else {
+                let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x : xCoordinateL1, y: yCoordinateL1}};
+                setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+            }
+            
+            //Increment L1 node counter
+            counterL1++;
+
+            //Add to successor L1 IDs
+            successorIDsL1.push(successor + successorCount);
+            
+            setNodesAdded(existingNodes => [...existingNodes, successor]);
+            allAddedNodes.push(successor);
+
+            //Now, generate the successors of each subtree (if required)
+            if (!renderSecondOrderSuccessors) {continue;}
+
+            //Store the y-coordinate position
+            allFirstOrderPositions.push(yCoordinateL1);
+
+            //If dealing with a tri-or-tetra-gram model, leverage the startKey to generate the appropriate L1 key to access the L2 successors
+            let secondOrderKey = unformattedSuccessor;
+            //Tri-gram key: last word + current word
+            if (modelType === "Tri-gram") {secondOrderKey = startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor}
+            //Tetra-gram key: last two words + current word
+            else if (modelType === "Tetra-gram") {secondOrderKey = startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor}
+
+            //Second order successors
+            let successorsL2 = Array.from(nGramDict.get(secondOrderKey));
+
+            //Get second successor group
+            successorsL2 = successorsL2.map(function (pair) {return pair[0];});
+
+            //For handling auto-sizing of columns
+            let columnSize;
+
+            if (maxFirstOrderSuccessors === 5) {columnSize = 2;}
+            else if (maxFirstOrderSuccessors === 4) {columnSize = 2;}
+            else if (maxFirstOrderSuccessors === 3) {columnSize = 3;}
+            else if (maxFirstOrderSuccessors === 2) {columnSize = 4;}
+            else {columnSize = 5;}
+
+            //Append column size
+            columnSizes.push(columnSize);
+
+            //Row and column counters
+            let counterL2 = 0;
+            let columnCounterL2 = 0;
+
+            //L2 Successor Length (store in array as well)
+            let l2SuccessorLength = successorsL2.length;
+            successorL2Lengths.push(l2SuccessorLength);
+
+            //Coordinates
+            let xCoordinateL2 = maxDeviationXL2 * 3;
+            let yCoordinateL2; //= yCoordinateL1 - (50 * (columnSize - 1));
+
+            if (l2SuccessorLength < columnSize) {yCoordinateL2 = yCoordinateL1 - (25 * (l2SuccessorLength + 1));} 
+            else {yCoordinateL2 = yCoordinateL1 - (25 * (columnSize + 1));}
+
+
+            //If this is a tri-or-tetra-gram model, add the last one and two words respectively of the previous successor
+            //The idea is that when the user reads the L2 section, they'll see a sequence of words and then some indivdual words inside a box
+            //By combining the given sequence and whatever word they pick from inside the box, they'll have generated a new key
+
+            //The following flag will be turned to true if, for all non-bi-gram models, a single key-L2 successor pair has already been added to a single node (i.e. there is only one L2 successor)
+            let nonBiGramL2PairAdded = false;
+
+            if (modelType !== "Bi-gram") {
+
+                //Create initial word sequence; add a plus sign at the end to indicate that it will be joined by a word from the box of provided selections
+                let initWordSequence;
+                if (modelType === "Tri-gram") {
+                    initWordSequence = reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]);
+                } else if (modelType === "Tetra-gram") {
+                    initWordSequence = reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 2] + " " + secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]);
+                }
+
+                //Check to see if one or multiple L2 successors are present. If just one, lump together with the initWordSequence. Otherwise, draw a box and join
+                let sequenceNodeBeforeBox;
+
+                //Create new node with the given sequence and add to the graph
+                //Y-position should be identical to that of the first-order successor
+
+                if (l2SuccessorLength < 2) {
+                    sequenceNodeBeforeBox = {data : {id : initWordSequence + " " + reFormatText(successorsL2[0]), label : initWordSequence + " " + reFormatText(successorsL2[0])}, position : {x: xCoordinateL2, y : yCoordinateL1}};
+                    //Set flag
+                    nonBiGramL2PairAdded = true;
+                } else {
+                    sequenceNodeBeforeBox = {data : {id : initWordSequence, label : initWordSequence}, position : {x: xCoordinateL2, y : yCoordinateL1}};
+                }
+
+                //Increment the x-coordinate positioning as well; this is leveraged by both the successor positioning logic and the box drawing mechanism
+                xCoordinateL2 += maxDeviationXL2;
+
+                //Add to graph data
+                setGraphData(existingGraph => [...existingGraph, sequenceNodeBeforeBox]);
+
+            }
+
+            //Iterate through all L2 successors
+            for (var j = 0; j < successorsL2.length; j++) {
+
+                //Get successor word
+                let successorL2 = reFormatText(successorsL2[j]);
+
+                if (counterL2 % columnSize == 0 && counterL2 != 0) {
+                    xCoordinateL2 += maxDeviationXL2;
+                    yCoordinateL2 = yCoordinateL1 - ((columnSize + 1) * (50 / 2));
+                    counterL2 = 0;
+
+                    //Increment second order column counter
+                    columnCounterL2++;
+                }
+
+                //If this is the final column, add the maximum width to the array
+                //Also push the number of columns
+                if (j == successorsL2.length - 1) {
+                    maxWidths.push(xCoordinateL2)
+                    L2ColumnsPerRow.push(columnCounterL2);
+                }
+
+                //Determine the maximum number of nodes allowed in this column
+                let maxColumnNodesL2 = 0;
+                if (columnCounterL2 < ((l2SuccessorLength / columnSize) - 1)) {
+                    maxColumnNodesL2 = columnSize;
+                }
+                else if (l2SuccessorLength % columnSize == 0) {maxColumnNodesL2 = columnSize;}
+                else {maxColumnNodesL2 = l2SuccessorLength % columnSize;}
+
+                yCoordinateL2 += 50;//(Math.abs(50 / 2) * columnSize) / (maxColumnNodesL2 + 1);
+
+                //Add to graph (whether the successor has already been included or not is of no consequence)
+                //Use previous successor count simply to generate a new ID that is unique
+                //Check how many times the sucessor as already been added
+                let successorCountL2 = allAddedNodes.filter(node => node === successorL2).length;
                 
-//                 }
-//             })
-//         //Otherwise, replace with designated end node as long as the key is not END OF NODE
-//         //Do this only for automatic text generation
-//         } else if (textGenMode === "automatic" && !graphReRendered){
-//             const label = "END OF CHAIN"
 
-//             //Add node
-//             let endNode = {data : {id : label, label : label}, position : { x:Math.random() * 2000 + 50, y: Math.random() * 2000 + 50}}
-//             setGraphData(existingGraph => [...existingGraph, endNode]);
-
-//             //Add branch
-//             let endBranch = {data : {source : key, target : label, label : key + label}}
-//             setGraphData(existingGraph => [...existingGraph, endBranch]);
-//             setGraphReRendered(true);
-
-//             //The automatic graph has now completed rendering - set flag accordingly
-//             setAutoGraphRendered(true);
-//             setPendingNodesAdded(true)
-            
-//         }
-
-        
-//         //Indicate that all pending nodes have been added until the next call - this allows for the removal of previous nodes to take place without race conditions
-//         setPendingNodesAdded(true);
-//         //Set keysAdded
-//         setKeysAdded(existingKeys => [...localKeysAdded]);
-
-//     }
-
-//         //Each time a new key is added - add standard connections for Tri-and-Tetra-grams, add backwards connections, and add option selections
-
-
-//     //A function to re-render the layout each time data population is complete (the graph has been rendered once; re-apply with the layout and try again)
-//     useEffect(() => {
-//         if (graphReRendered) {
-//             // buildGraph();
-//             setLayout({
-//                 name: layoutName,
-//                 fit: true,
-//                 rankDir: "LR",
-//                 directed: false,
-//                 circle: true,
-//                 // grid: false,
-//                 avoidOverlap: true,
-//                 spacingFactor: 1.5 + Math.random() * (1.8 - 1.5),
-//                 nodeDimensionsIncludeLabels: true,
-//                 animate: true,
-//                 gravity : 1,
-//                 randomize: false,
-//                 ready: true,
-//                 stop: true,
-//                 klay : {
-//                     addUnnecessaryBendpoints: false,
-//                     mergeHierarchyCrossingEdges: false,
-//                     direction : "RIGHT",
-//                     // crossingMinimization: "INTERACTIVE",
-//                     feedbackEdges: true,
-//                     mergeEdges : true,
-//                     //nodePlacement : "LINEAR_SEGMENTS"
-//                 }
-//             });
-
-//             setGraphReRendered(false);
-//         }
-
-//     }, [graphReRendered])
-
-//     //To remove previous nodes that have NOT been selected - in other words, to remove previous wordOptions values and de-clutter the graph
-//     const removePreviousOptions = () => {
-//         //Make sure that the length of the keys is greater than 1
-//         if (keysAdded.length > 1) {
-            
-//             //Find the last introduced key
-//             const previous_key = keysAdded[keysAdded.length - 2];
-//             //Get all non-selected word names associated with the previous key
-//             let unselected_node_names = [];
-
-//             //Iterate over graph data and store
-//             graphData.forEach(data_entry =>{
-//                 //Only consider branch data. Find all target words, being careful not to add the current key itself.
-//                 if ("source" in data_entry["data"] && data_entry["data"]["source"] === previous_key && data_entry["data"]["target"] !== key) {
-
-//                     //Ensure that the target word is NOT already a key (which may be the case if the node is being revisited)
-//                     if (!keysAdded.includes(data_entry["data"]["target"])) {
-//                         unselected_node_names.push(data_entry["data"]["target"]);
-//                     }
-
-//                 }
-//             })
-
-//             //Filter manual graph such that any branches and nodes within the unselected_node_names list are excluded
-//             //Filter for branches
-//             let filtered_graph = graphData.filter((data_item, data_index) => 
-//                                                                 data_item["data"]["target"] === undefined || unselected_node_names.indexOf(data_item["data"]["target"]) === -1
-//                                                             );
-
-
-//             //Filter for nodes. Iterate over all unselected node names
-//             unselected_node_names.forEach(unselected_node => {
-//                 graphData.forEach(data_entry => {
-
-//                     //Verify that the data entry is a node. If it's ID is the unselected node name, remove.
-//                     if (!("source" in data_entry["data"]) && data_entry["data"]["id"] === unselected_node) {
-//                         filtered_graph = filtered_graph.filter((data_sample, index) => index !== filtered_graph.indexOf(data_entry))
-//                     }
-
-//                 })
-//             })
-
-//             //Remove unselected nodes from active. Filter via copy of array first
-//             const filtered_keys_added = nodesAdded.filter((key) => !unselected_node_names.includes(key));
-//             //Assign filtered keys.
-//             setNodesAdded(filtered_keys_added);
-
-//             //Assign filtered graph to the currently active graph
-//             setGraphData(filtered_graph);
-
-//             // //Set the removal flag to true
-//             // setPrevWordOpsRemoved(true);
-
-//             // buildGraph();
-//             // colorGraph();
-//         }
-//     }
-
-//     //To assign various colours to all nodes - green for keys, red for options, and light blue for all others
-//     const colorGraph = () => {
-
-//         //Iterate over all nodes
-//         graphData.forEach(data_entry => {
-
-//             //Check that the cytoscape reference is up and running
-//             if (graphRef.current && !("source" in data_entry["data"])) {
-
-//                 const word = data_entry["data"]["id"];
-//                 const cy = graphRef.current._cy;
-
-//                 //Colour the node depending on whether the word is a key or a wordOption
-//                 //Keys are coloured dark green with white font
-//                 //Default colouring only occurs when the automatic graph has not been rendered; otherwise, the END OF CHAIN node should be red and all others should simply be blue
-//                 if (word === key && !autoGraphRendered) {
-
-//                     cy.nodes('[id=\"' + word + '\"]').style("background-color", "#14532D");
-//                     cy.nodes('[id=\"' + word + '\"]').style("color", "white");
-
-//                 //Word selection options (and the final END OF CHAIN node) are coloured light red with black font
-//                 } else if ((wordOptions.includes(word) && !autoGraphRendered) || word === "END OF CHAIN") {
-
-//                     cy.nodes('[id=\"' + word + '\"]').style("background-color", "#FF786E");
-//                     cy.nodes('[id=\"' + word + '\"]').style("color", "black");
-
-//                 //All previous keys (all other nodes) are coloured light blue with black font
-//                 } else {
-
-//                     cy.nodes('[id=\"' + word + '\"]').style("background-color", "#ADD8E6");
-//                     cy.nodes('[id=\"' + word + '\"]').style("color", "black");
-
-//                 }
-
-//             } 
-//         })
-
-//     }
-
-//     //Check continuously for whether the graph has been reset, the key has changed, or potential word choices have been updated
-//     //If any of the above are true, the key is NOT blank (i.e. it has been chosen), and the graph has successfully been reset, re-render the graph
-//     //Simultaneously, re-define the layout.
-//     useEffect(() => {
-//         //Verify reset and key selection, as well as the fact that previous key options have all been removed
-//         if (isReset && key !== " " && key !== "") {
-//             //Build the graph
-//             buildGraph();
-//             //Set the graph's layout
-//             setLayout({
-//                 name: layoutName,
-//                 fit: true,
-//                 rankDir: "LR",
-//                 directed: false,
-//                 circle: true,
-//                 // grid: false,
-//                 avoidOverlap: true,
-//                 spacingFactor: 1.5 + Math.random() * (1.8 - 1.5),
-//                 nodeDimensionsIncludeLabels: true,
-//                 animate: true,
-//                 gravity : 1,
-//                 randomize: false,
-//                 ready: true,
-//                 stop: true,
-//                 klay : {
-//                     addUnnecessaryBendpoints: false,
-//                     mergeHierarchyCrossingEdges: false,
-//                     direction : "RIGHT",
-//                     // crossingMinimization: "INTERACTIVE",
-//                     feedbackEdges: true,
-//                     mergeEdges : true,
-//                     //nodePlacement : "LINEAR_SEGMENTS"
-//                 }
-//             });
-//         }
-//     }, [isReset, key, wordOptions])
-
-//     //Each time the graph changes state, re-colour
-//     useEffect(() => {
-//         colorGraph();
-//     }, [graphData])
-// //
-//     //Whenever a new key is added, re-enable all branch connections and delete unused nodes
-//     useEffect(() => {
-
-//         //Set both flags to true
-//         setBiBackwardsCnxAllowed(true);
-//         setTriTetraCnxAllowed(true);
-
-//     }, [keysAdded])
-
-//     useEffect(() => {
-//         //Delete previous wordOptions if the graph has been rendered and the current word / keys added have changed
-//         removePreviousOptions();
-//         //Set the flag to false
-//         setPendingNodesAdded(false);
-        
-//     }, [currentWord, keysAdded])
-    
-//     //Check for when the layout is no longer undefined (that is, it has been rendered) and update accordingly
-//     useEffect(() => {
-//         if (layout !== undefined) {
-//             setLayoutBuilt(true);
-//         }
-//     }, [layout])
-
-//     //The aforementioned functions are triggered by the wordChosen function located in ManualTextOptions
-//     //For automatic text generation, we want to trigger this function automatically every few seconds and thus render the graph without any clicks
-//     //Define automatic generation logic
-//     useEffect(() => {
-//         // console.log("IS RESET:", isReset);
-//         // console.log("MODEL TYPE:", modelType);
-//         //Set an interval to repeat each second
-//         const wordSelectionInterval = setInterval(() => {
-//             //Verify that the text generation mode is automatic and that the graph has been reset
-//             //Verify additionally that text has been generated and that the counter is not larger than the length of the generated text
-//             //This length will change depending on the model - Tri-and-Tetra-gram models, for instance, should run n - 1 and n - 2 times repsectively for a sentence of n words
-//             let maximumLength = generatedText.split(" ").length;
-//             if (modelType === "Tri-gram") {maximumLength -= 1;}
-//             else if (modelType === "Tetra-gram") {maximumLength -= 2;}
-//             //Initiate comparison
-//             if (textGenMode === "automatic" && isReset && generatedText !== "" && genCounter < maximumLength) {
-//                 //Set currentWord to the word of generated text located at index genCounter
-//                 setCurrentWord(generatedText.split(" ")[genCounter].replace("<PERIOD>", ".").replace("<EXCL>", "!").replace("<Q>", "?").trim());
-//                 //Increment counter
-//                 const setValue = genCounter + 1;
-//                 setGenCounter(setValue);
+                //If only one successor is present, do not jitter (box rendering will also be disabled for these cases).
+                //If only one successor is present while the model is NOT a bi-gram, the aforementioned nonBiGramL2PairAdded flag will be true - do NOT render any nodes if that is the case
                 
-//                 //Otherwise, clear the interval
-//             } else {clearInterval(wordSelectionInterval);}
-//         }, 1000);
+                //Continue if all the necessary successors have already been rendered
+                
+                if (nonBiGramL2PairAdded) {continue;}
 
-//         //Clear interval when finished
-//         return () => clearInterval(wordSelectionInterval);
+                let newGraphPointL2;   
+                if (successorsL2.length > 1) {
+                    newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x : xCoordinateL2 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL2 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};
+                } else {
+                    newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};
+                }
+                
+                setGraphData(existingGraph => [...existingGraph, newGraphPointL2]);
+
+                allAddedNodes.push(successorL2);
+                setNodesAdded(existingNodes => [...existingNodes, successorL2]);
+                counterL2++;
+                
+
+            }
+
+        }
+
+        //If not rendering second order successors, generate a box around the existing graph elements, not including the start word
+        if (!renderSecondOrderSuccessors) {
+
+            //Establish right and left bounds, including "padding" that is boundingBoxPadding * the width of the node
+            const rightPos = xCoordinateL1 + (boundingBoxPadding * nodeWidth);
+            const leftPos = 2 * maxDeviationXL1 - (boundingBoxPadding * nodeWidth);
+
+            //Find width and midpoint
+            const width = rightPos - leftPos
+            const midpoint = (rightPos + leftPos) / 2;
+
+            //Define bounding box
+            const boundingBox = {
+                "group" : "nodes",
+                data : {id : "BOX_L1", label : ""},
+                position : {
+                    x : midpoint,
+                    y: 0,
+                },
+                style : {
+                    width : width,
+                    height : Math.abs(maxDeviationYL1 * 1.7),
+                    shape : "roundrectangle",
+                    'background-color' : "F5F5F5",
+                    "background-opacity" : 100,
+                    "border-width" : 3,
+                    "border-color" : "black",
+                }
+            }
+
+            //Add box to graph
+            setGraphData(existingGraph => [...existingGraph, boundingBox])
+
+            //Add branches
+            let newBranchL1 = {data : {source : reFormatText(startKey), target : "BOX_L1", label : reFormatText(startKey) + "BOX_L1"}};
+            setGraphData(existingGraph => [...existingGraph, newBranchL1]);
         
-//     }, [textGenMode, isReset, generatedText, genCounter, modelType]) 
+        //If rendering second-order successors, generate an individual box around each level of second-order successors
+        } else {
 
-//     //When the generated text changes, set the counter back to zero
-//     useEffect(() => {
-//         //Do so as long as the mode of generation is automatic
-//         if (textGenMode === "automatic") {
-//             setGenCounter(0);
-//         }
-//     }, [generatedText, textGenMode, modelType])
+            //The left position must be shifted to 4 * maxDeviationXL2 if the model is a tri-or-tetra-gram.
+            //This is as a previous chain of words has now been added before the box begins for these model types.
+            let deviationFactor = 3;
+            if (modelType !== "Bi-gram") {deviationFactor = 4;}
 
-//     useEffect(() => {
-//         console.log("NEW CURRENT WORD:", currentWord);
-//     }, [currentWord])
+            //Iterate through each L1 successor
+            for (var i = 0; i < maxFirstOrderSuccessors; i++) {
 
-    // =========== ALL DISPLAY CONTENT ===========
+                //Verify that the length of the second order successors is greater than one; if not, make the box invisible
+                let box_color = "black"
+                if (successorL2Lengths[i] < 2) {box_color = "white";}
 
-    //Render content to the fourth pane
+                //Define positions of left and right boxes
+                //Add boundingBoxPadding * the node width to ensure the box goes around the words
+                //The XL2 deviation will be multiplied by the aforementioned deviation factor
+                //This should be done for the inner box
+                const rightPos = maxWidths[i] + (boundingBoxPadding * nodeWidth);
+                const leftPos = deviationFactor * maxDeviationXL2 - (boundingBoxPadding * nodeWidth);
+
+                //Two boxes will be created in the instance that the model is not a Bi-gram - one outer, one inner.
+                //The outer box will be invisible and include the key fragment prior to the intended successor chain
+                //The inner box will simply be the successor candidates.
+
+                //Create an outerLeftPos variable
+                let outerLeftPos = 3 * maxDeviationXL2 - (boundingBoxPadding * nodeWidth);
+
+                //Box colour is set to white if not 
+                
+                if (modelType !== "Bi-gram") {
+
+                    //Calculate outer left bound for the outer box
+                    outerLeftPos = 3 * maxDeviationXL2 - (boundingBoxPadding * nodeWidth);
+
+                    const innerBoxDist = Math.abs(rightPos - leftPos);
+                    const innerMidpoint = (rightPos + leftPos) / 2;
+
+                    //Create the inner box
+                    //Set the actual L2 bounding box
+                    const innerBoundingBox = {
+                        "group" : "nodes",
+                        data : {id : "BOX_L2_INNER_" + i, label : ""},
+                        position : {
+                            x : innerMidpoint,//(maxWidths[i] - (3 * maxDeviationXL2))/2 + (3 * maxDeviationXL2),//(((100 + maxWidths[i]) - (3 * maxDeviationXL2)) / 2) + 3 * maxDeviationXL1,
+                            y: allFirstOrderPositions[i],
+                        },
+                        style : {
+                            width : innerBoxDist - 50 + "px",//(maxWidths[i] - (3 * maxDeviationXL2)) + ((maxWidths[i] - (3 * maxDeviationXL2)) / 2),//(maxWidths[i] + 50) - ((3 * maxDeviationXL2) - 50),//(100 * (L2ColumnsPerRow[i] + 1)) + (maxDeviationXL2 * (L2ColumnsPerRow[i])),
+                            height : (columnSizes[i] + 1) * 40,//(columnSizes + 1) * 25 + 20,
+                            shape : "roundrectangle",
+                            'background-color' : "white",
+                            "background-opacity" : 0,
+                            "border-width" : 3,
+                            "border-color" : box_color,
+                            "z-index" : 9999
+                        }
+                    }
+
+                    //Add box to graph
+                    setGraphData(existingGraph => [...existingGraph, innerBoundingBox])
+
+                    //Set box colour to white if the model is not a bi-gram one
+                    box_color = "white";
+
+                }
+
+                //Find distance between left and right bounding boxes
+                const boxDist = Math.abs(rightPos - outerLeftPos);
+                //Find the midpoint
+                const midpoint = (rightPos + outerLeftPos) / 2;
+
+                //If this box is a single successor (i.e. a single word), shrink the height dramatically to prevent any overlap between the white and black borders
+                let height;
+                if (box_color === "white" && modelType === "Bi-gram") {height = 77;}
+                else {height = (columnSizes[i] + 1) * 40};
+
+                //Set the actual L2 bounding box
+                const boundingBox = {
+                    "group" : "nodes",
+                    data : {id : "BOX_L2_" + i, label : ""},
+                    position : {
+                        x : midpoint,//(maxWidths[i] - (3 * maxDeviationXL2))/2 + (3 * maxDeviationXL2),//(((100 + maxWidths[i]) - (3 * maxDeviationXL2)) / 2) + 3 * maxDeviationXL1,
+                        y: allFirstOrderPositions[i],
+                    },
+                    style : {
+                        width : boxDist + "px",//(maxWidths[i] - (3 * maxDeviationXL2)) + ((maxWidths[i] - (3 * maxDeviationXL2)) / 2),//(maxWidths[i] + 50) - ((3 * maxDeviationXL2) - 50),//(100 * (L2ColumnsPerRow[i] + 1)) + (maxDeviationXL2 * (L2ColumnsPerRow[i])),
+                        height : height,
+                        shape : "roundrectangle",
+                        'background-color' : "white",
+                        "background-opacity" : 0,
+                        "border-width" : 3,
+                        "border-color" : box_color,
+                    }
+                }
+
+                //Add box to graph
+                setGraphData(existingGraph => [...existingGraph, boundingBox])
+
+                //Create branches
+                let newBranchL2 = {data : {source : successorIDsL1[i], target : "BOX_L2_" + i, label : successorIDsL1[i] + "BOX_L2_" + i}};
+                setGraphData(existingGraph => [...existingGraph, newBranchL2]);
+
+                let newBranchStartL2 = {data : {source : reFormatText(startKey), target : successorIDsL1[i], label : reFormatText(startKey) + successorIDsL1[i]}};
+                setGraphData(existingGraph => [...existingGraph, newBranchStartL2]);
+
+            }
+        }
+    }
+
+    //Create a function to render a graph. As mentioned above, it should be triggered by changing generatedText in automatic mode and nGramDict in manual mode.
+    const renderGraph = () => {
+
+        //Check continuously for whether the graph has been reset, the key has changed, or potential word choices have been updated
+        //If any of the above are true, the key is NOT blank (i.e. it has been chosen), and the graph has successfully been reset, re-render the graph
+        //Simultaneously, re-define the layout.
+
+        //Verify reset and key selection, as well as the fact that previous key options have all been removed
+        if (isReset) {
+            //Build the graph
+            buildGraph();
+            //Set the graph's layout
+            setLayout({
+                name: layoutName,
+                fit: true,
+                rankDir: "LR",
+                directed: false,
+                circle: false,
+                // grid: false,
+                avoidOverlap: true,
+                //spacingFactor: 1.5 + Math.random() * (1.8 - 1.5),
+                nodeDimensionsIncludeLabels: false,
+                //boundingBox: {x1 : 0, y1 : 0, x2 : 500, y2: 500},
+                animate: true,
+                gravity : 1,
+                randomize: false,
+                ready: false,
+                stop: false,
+            });
+        }
+    }
+
+    //Render graph for various text generation modes
+
+    useEffect(() => {
+        if (textGenMode === "manual" && isReset && !manualRendered && generatedText !== "") {
+            renderGraph();
+        }
+    }, [isReset, generatedText, textGenMode])
+
+    //Each time wordOptions changes, enable the rendering of the manual graph
+    useEffect(() => {
+        if (textGenMode === "manual") {setManualRendered(false);}
+    }, [generatedText])
+
+    useEffect(() => {
+        if (textGenMode === "manual") {setManualRendered(false);}
+    }, [textGenMode])
+
+    useEffect(() => {
+        if (textGenMode === "automatic") {
+            renderGraph();
+        }
+    }, [isReset, generatedText])
+
+
+    //Check for when the layout is no longer undefined (that is, it has been rendered) and update accordingly
+    useEffect(() => {
+        if (layout !== undefined) {
+            setLayoutBuilt(true);
+        }
+    }, [layout])
+
     return (
         <div className = "visualizations" class = "flex flex-col space-y-2 h-full w-full items-center justify-center rounded-md bg-zinc-50 drop-shadow-md">
-            {/* <div className = "panel-4-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
+            <div className = "panel-4-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
                 <p className = "text-entrance-text" class = "flex-auto font-bold monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs">[4] Visualize {modelType}.</p>
                 <div className = "instructions" class = "flex flex-col justify-end items-right text-right w-1/2 h-full">
                     <p className = "instruction1" class = "flex-auto monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Mouse wheel / trackpad to zoom.</p>
                     <p className = "instruction1" class = "flex-auto monitor:text-base 2xl:text-sm xl:text-sm sm:text-xs">Left button to pan (click and drag).</p>
                 </div>
-            </div> */}
+            </div>
             <div id = "cyto-frame" className = "visualization-graph" class = "flex w-11/12 h-5/6 bg-white rounded-md">
-                {/* {layoutBuilt && <CytoscapeComponent className = "graph" id = "graph" class = "h-full w-full" stylesheet = {graphStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}} ref = {graphRef}/>} */}
-                {/* {!layoutBuilt && <div className = "loading" class = "flex h-full w-full text-center align-center items-center justify-center">Loading...</div>} */}
-                <div className = "loading" class = "flex h-full w-full text-center align-center items-center justify-center">Coming soon! Please stay tuned.</div>
+                {layoutBuilt && <CytoscapeComponent className = "graph" id = "graph" class = "h-full w-full" stylesheet = {graphStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}} ref = {graphRef}/>}
+                {!layoutBuilt && <div className = "loading" class = "flex h-full w-full text-center align-center items-center justify-center">Loading...</div>}
+                {/* <div className = "loading" class = "flex h-full w-full text-center align-center items-center justify-center">Coming soon! Please stay tuned.</div> */}
             </div>
         </div>
     )

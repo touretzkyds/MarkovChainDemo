@@ -39,7 +39,7 @@ export default function App() {
                 <button className = "about-button" onClick = {openAboutWindow} class = "bg-white text-black font-bold hover:bg-black hover:text-white hover:ring rounded-md w-1/12 h-full outline outline-1">About / Help</button>
               </div>
               
-              <div className = "subheader-text" class = "">A tool to explore and tinker with n-grams - a statistical precursor to Large Language Models (LLMs).</div>
+              <div className = "subheader-text">A tool to explore and tinker with n-grams - a statistical precursor to Large Language Models (LLMs).</div>
             </div> 
           </div>
           <div className = "application-body" class = "custom-application-body">
