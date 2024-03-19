@@ -19,7 +19,7 @@ If you'd like to create your own version of the demo or modify some bits and pie
 1. Install node 20.11.0 and npm 10.2.4. You can find installation instructions for your machine [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
 2. Clone this git repository (namely, the master branch).
 3. cd to the repository directory.
-4. Install react-scripts via `npm install react-scripts`.
+4. Install react-scripts via `npm install`.
 5. Now that you've finished setting up, start the demo on your localhost (port 3000 by default) via `npm run start`. Make all of your changes and see the updates! You may need to re-load the page after making any modifications.
 6. Once you're done, you'll need to actually get your changes ready for production. Run `npm run build` to create deployment-ready files automatically in the `build` directory.
 7. You might notice that `build` has an `index.html` file. But, we're serving the app from root, not `build/index.html`! So, copy paste the contents of `build/index.html` into `index.html` in the root directory. **Once you're done this, remember to add `build/` in front of each of the three pathnames, just to make sure that we're pointing to the right files you just compiled.**
