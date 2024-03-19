@@ -88,13 +88,6 @@ export default function GenerateDict(props){
             importWikiArticle();
         }
     }
-    
-    //For when the Wikipedia input area is clicked
-    const wikiInputClicked = () => {
-        if (wikiArticleTitle === "🔍Search for a Wikipedia Article.") {
-            setWikiArticleTitle("");
-        }
-    }
 
     //For when the Wikipedia input area is clicked
     const wikiInputClicked = () => {
