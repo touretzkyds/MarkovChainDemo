@@ -7,16 +7,13 @@ import ManualTextOptions from "./ManualTextOptions";
 export default function GeneratePassage(){
 
     //Get user ID and other helper variables from context
-    //In particular, leverage nodesAdded rather than generatedText to display iteratively and higlight keys in automatic generation mode
-    const {nGramDict, enableButton, setEnableButton,
-           currentWord, modelType, autoGraphAllowed, 
+    //In particular, leverage nodesAdded rather than generatedText to display iteratively and highlight keys in automatic generation mode
+    const {nGramDict, enableButton, currentWord, modelType, 
            setAutoGraphAllowed, generatedText, setGeneratedText,
-           manualGeneratedText, setManualGeneratedText,
-           wordCount, setCurrentWord, wordOptions, setWordOptions, 
+           setManualGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, 
            key, setKey, setWordCount, textGenMode, setTextGenMode, 
            enableNextWord, setEnableNextWord, setKeysAdded, 
-           generate_text, clearButtonClicked, setClearButtonClicked, 
-           currentWordCounter, setCurrentWordCounter} = useDictContext();
+           generate_text, currentWordCounter, setCurrentWordCounter} = useDictContext();
 
     //Enable next word selection panel
     // const [enableNextWord, setEnableNextWord] = useState(false);
@@ -31,6 +28,10 @@ export default function GeneratePassage(){
     //Each time the aforementioned variable is changed, update manualGeneratedText
     useEffect(() => {
         setManualGeneratedText(display_text);
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [display_text])
     
     //Get mode of generation when changed
@@ -59,6 +60,10 @@ export default function GeneratePassage(){
         }
         
         setKeysAdded([]);
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAutomaticSwitch])
 
     //Get word limit when changed
@@ -132,6 +137,10 @@ export default function GeneratePassage(){
         } else if (textGenMode === "automatic" && key === "" && wordOptions.length === 0 && currentWord === "") {
             setReset(true);
         }
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [generatedText, key, wordOptions, currentWord])
 
     //Once reset, randomly select a start word
@@ -143,6 +152,10 @@ export default function GeneratePassage(){
             setCurrentWord(start_word);
             
         }
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [reset, textGenMode, modelType])
 
     //Each time the currentWord is updated, generate a new selection of words
@@ -228,6 +241,10 @@ export default function GeneratePassage(){
     //If the mode of text generation has shifted back to manual, automatically generate more text
     useEffect(() => {
         if (textGenMode === "automatic" && nGramDict.size !== 0) {gen_button_clicked();}
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nGramDict, textGenMode])
 
     return (

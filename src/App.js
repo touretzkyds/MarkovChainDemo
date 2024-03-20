@@ -1,5 +1,5 @@
 import './App.css';
-import React, {useState, useEffect} from "react";
+import React, {useState} from "react";
 import GenerateDict from './Generate_Dict';
 import GeneratePassage from './Generate_Passage';
 
@@ -10,9 +10,6 @@ import "./homepage.css"
 //From opening new webpages 
 
 export default function App() {
-
-  //About Window object
-  const [aboutWindow, setAboutWindow] = useState();
   
   //Check whether the dictionary has been generated
   let [dictGenerated, setDictGenerated] = useState(false);
@@ -23,9 +20,7 @@ export default function App() {
     //Build a new URL (adding about.html to the current path) and convert it to a string
     const aboutPath = new URL('about.html', window.location.href).toString();
     //Open the built path
-    const about_window = window.open(aboutPath, '_blank');
-    //Set the window object accordingly
-    setAboutWindow(about_window);
+    window.open(aboutPath, '_blank');
   };
 
   return (

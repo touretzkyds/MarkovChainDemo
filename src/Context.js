@@ -255,7 +255,7 @@ export const DictContextProvider = ({ children }) => {
                 result_chars.push(' ');
             //Check if it is a spacer character (that we want to tokenize)
             } else if (spacer_chars.indexOf(current_char) > -1) {
-                //Push surrounded by spaces (seperate token)
+                //Push surrounded by spaces (separate token)
                 result_chars.push(...[' ', current_char, ' ']);
             //If neither, simply append a lowercase version of the character
             } else {
@@ -390,7 +390,7 @@ export const DictContextProvider = ({ children }) => {
         const key_lengths = map_arr.map(function(key) {return key[1].size;});
 
         //Sum and divide by the total number of keys - account for if the length of the keys is zero
-        return key_lengths != 0 ? Math.round((key_lengths.reduce(function(a, b) {return a + b;}, 0) / (map_arr.length + Number.EPSILON)) * 1000) / 1000 : 0;
+        return key_lengths !== 0 ? Math.round((key_lengths.reduce(function(a, b) {return a + b;}, 0) / (map_arr.length + Number.EPSILON)) * 1000) / 1000 : 0;
     }
 
     //Select a word based on the frequency said word occurs in within the given text
@@ -401,14 +401,14 @@ export const DictContextProvider = ({ children }) => {
         const values = Array.from(gram_map.get(word));
 
         //Get all frequencies
-        const optFrequences = [];
-        for (var i = 0; i < values.length; i++) {optFrequences.push(values[i][1]);}
+        const optFrequencies = [];
+        for (let i = 0; i < values.length; i++) {optFrequencies.push(values[i][1]);}
 
         //Sum and normalize all frequencies
-        const freqSum = optFrequences.reduce((incompleteSum, f) => incompleteSum + f, 0);
+        const freqSum = optFrequencies.reduce((incompleteSum, f) => incompleteSum + f, 0);
         //Normalize
         const normFactor = 1.0/freqSum;
-        for (var i = 0; i < optFrequences.length; i++) {optFrequences[i] = optFrequences[i] * normFactor;}
+        for (let i = 0; i < optFrequencies.length; i++) {optFrequencies[i] = optFrequencies[i] * normFactor;}
 
         //Choose new word based on probabilities
         //Randomly generate value between 0 and 1
@@ -417,10 +417,10 @@ export const DictContextProvider = ({ children }) => {
         let probSum = 0;
 
         //Iterate over all probabilities
-        for (var i = 0; i < optFrequences.length; i++) {
+        for (let i = 0; i < optFrequencies.length; i++) {
 
             //Add the current probability to the probSum
-            probSum += optFrequences[i];
+            probSum += optFrequencies[i];
 
             //If the randomly generated number is in the appropriate range, assign the associated option to the current word
             if (randomNum < probSum) {
@@ -448,7 +448,7 @@ export const DictContextProvider = ({ children }) => {
         
         //Verify that the start key is in the dictionary
         } else if (keys.indexOf(start) === -1) {
-            throw ReferenceError("'" + start + "'" + " not in bigram dictionary");
+            throw ReferenceError(`'${start}' not in bigram dictionary.`);
         }
 
         //Set first word, sentence, and generated word count tracker
@@ -494,7 +494,7 @@ export const DictContextProvider = ({ children }) => {
 
         //Verify that the start key is in the dictionary
         } else if (keys.indexOf(start) === -1) {
-            throw ReferenceError("'" + start + "'" + " not in trigram dictionary");
+            throw ReferenceError(`'${start}' not in trigram dictionary.`);
         }
 
         //Set first word, sentence, and generated word count tracker
@@ -520,7 +520,7 @@ export const DictContextProvider = ({ children }) => {
                 //Choose new words based on values
                 word1 = word2
 
-                //The final word will also take probability of occurence into account
+                //The final word will also take probability of occurrence into account
                 word2 = select_word_probabilistically(trigram_map, key);
 
             //Set the word to null otherwise
@@ -551,7 +551,7 @@ export const DictContextProvider = ({ children }) => {
         
         //Verify that the start key is in the dictionary
         } else if (keys.indexOf(start) === -1) {
-            throw ReferenceError("'" + start + "'" + " not in tetragram dictionary");
+            throw ReferenceError(`'${start}' not in tetragram dictionary.`);
         }
 
         //Set first word, sentence, and generated word count tracker
@@ -578,7 +578,7 @@ export const DictContextProvider = ({ children }) => {
                 word1 = word2;
                 word2 = word3;
 
-                //Select third word based on frequency of occurence for given options
+                //Select third word based on frequency of occurrence for given options
                 word3 = select_word_probabilistically(tetragram_map, key);
 
             //Set the word to null otherwise

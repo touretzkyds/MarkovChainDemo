@@ -1,62 +1,66 @@
-import React, {useState, useEffect}from "react";
+import React, {useEffect} from "react";
 import { useDictContext } from "./Context";
-import InfiniteScroll from "react-infinite-scroller";
+
+//For infinite text generation, if needed. This feature is currently disabled; some pieces of code are commented out as a result.
+//If you'd like to enable this, simply uncomment the marked pieces of code (such as the following imports)
+// import {useState} from "react";
+// import InfiniteScroll from "react-infinite-scroller";
 // import {FixedSizeList as List} from "react-window";
 // import AutoSizer from "react-virtualized-auto-sizer";
 
 function DisplayDict() {
     //Get variables from context
-    const { inputText, setInputText, nGramDict, modelType, setModelType, 
-            frequencies, setFrequencies, branchingFactor, setBranchingFactor, 
-            lenDict, setLenDict, reFormatText, branching_factor, get_words} = useDictContext();
+    const { nGramDict, modelType, setModelType, branchingFactor, setBranchingFactor, 
+            lenDict, setLenDict, reFormatText, branching_factor} = useDictContext();
 
-    //For infinite dictionary scrolling implementation
-    const nDictItems = 40;
-    const [hasDictElements, setHasDictElements] = useState(true);
-    const [currentDictDisplayed, setCurrentDictDisplayed] = useState(nDictItems);
+    //INFINITE SCROLLING VARIABLES AND FUNCTIONS
+
+    // const nDictItems = 40;
+    // const [hasDictElements, setHasDictElements] = useState(true);
+    // const [currentDictDisplayed, setCurrentDictDisplayed] = useState(nDictItems);
     // const [loadDictElements, setLoadDictelements] = useState(false);
 
-    //To load additional dictionary elements if present when scroll is complete
-    const loadDictElements = () => {
+    // //To load additional dictionary elements if present when scroll is complete
+    // const loadDictElements = () => {
 
-        //If the current elements being displayed are identical to the dictionary's length, stop
-        if (nGramDict.size == currentDictDisplayed) {
-            setHasDictElements(false);
-        //After a brief delay, load more elements
-        } else {
-            setTimeout(() => {
-                setCurrentDictDisplayed(currentDictDisplayed + nDictItems);
-            }, 1)
-        }
-    }
+    //     //If the current elements being displayed are identical to the dictionary's length, stop
+    //     if (nGramDict.size === currentDictDisplayed) {
+    //         setHasDictElements(false);
+    //     //After a brief delay, load more elements
+    //     } else {
+    //         setTimeout(() => {
+    //             setCurrentDictDisplayed(currentDictDisplayed + nDictItems);
+    //         }, 1)
+    //     }
+    // }
 
-    //Implementation allowing for aforementioned additional dict elements to be displayed
-    const displayDictElements = (element) => {
+    // //Implementation allowing for aforementioned additional dict elements to be displayed
+    // const displayDictElements = (element) => {
 
-        var allElements = [];
-        //Convert map to array
-        var arr = Array.from(nGramDict);
-        //Iterate
-        if (arr.length !== 0) {
-            for (var i = 0; i < Math.min(nGramDict.size, currentDictDisplayed); i++) {
-                allElements.push(
-                    <div key = {i} class = "">
-                        <strong class = "text-green-900">{reFormatText(arr[i][0])}: </strong>
-                        {Array.from(arr[i][1]).map(([item, count], index, successorArr) => (
-                            <React.Fragment key={`${arr[i][0]}-${item}`}>
-                                <li className="inline list-none">
-                                    {reFormatText(item)} (<span>{count}</span>)
-                                </li>
-                                {index < successorArr.length - 1 && <span>, </span>}
-                            </React.Fragment>
-                        ))}
-                    </div>
-                )
-            }
-        }
-        return allElements;
+    //     let allElements = [];
+    //     //Convert map to array
+    //     let arr = Array.from(nGramDict);
+    //     //Iterate
+    //     if (arr.length !== 0) {
+    //         for (let i = 0; i < Math.min(nGramDict.size, currentDictDisplayed); i++) {
+    //             allElements.push(
+    //                 <div key = {i} class = "">
+    //                     <strong class = "text-green-900">{reFormatText(arr[i][0])}: </strong>
+    //                     {Array.from(arr[i][1]).map(([item, count], index, successorArr) => (
+    //                         <React.Fragment key={`${arr[i][0]}-${item}`}>
+    //                             <li className="inline list-none">
+    //                                 {reFormatText(item)} (<span>{count}</span>)
+    //                             </li>
+    //                             {index < successorArr.length - 1 && <span>, </span>}
+    //                         </React.Fragment>
+    //                     ))}
+    //                 </div>
+    //             )
+    //         }
+    //     }
+    //     return allElements;
 
-    }
+    // }
 
     //When a model option is selected
     const modelSelect = (selection) => {
@@ -73,11 +77,14 @@ function DisplayDict() {
         setLenDict(nGramDict.size);
         //determine_frequency()
 
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nGramDict])
     
     //Save function
     const save_dictionary = () => {
-        //Conver to JSON
+        //Convert to JSON
         const json_obj = JSON.stringify([...nGramDict]);
         //Blob
         const blob = new Blob([json_obj], {type : "application/json"});
@@ -121,6 +128,8 @@ function DisplayDict() {
             </div>
             
             <div className = "dict-display" class = "w-11/12 h-5/6 outline outline-slate-200 bg-white rounded-md overflow-y-auto text-left p-2 inline">
+                {/* If wanting to enable infinite scrolling, uncomment the following lines, and comment the {Array.from...} section. */}
+                
                 {/* <InfiniteScroll
                     pageStart = {0}
                     loadMore = {loadDictElements}
@@ -130,6 +139,7 @@ function DisplayDict() {
                 >
                     {displayDictElements(nGramDict)}
                 </InfiniteScroll> */}
+                
                     {Array.from(nGramDict).map(([key, values], index) => (
                         <div key = {index} class = "">
                             <strong class = "text-green-900">{reFormatText(key)}: </strong>
@@ -149,4 +159,4 @@ function DisplayDict() {
     )
 }
 
-export default DisplayDict
+export default DisplayDict;

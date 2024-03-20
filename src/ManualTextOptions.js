@@ -1,13 +1,9 @@
-import React, {useState, useEffect} from "react";
+import React from "react";
 import { useDictContext } from "./Context";
 
 export default function ManualTextOptions(props){
     //Get dictionary, model type, generated text, and word count
-    const {nGramDict, enableButton, setEnableButton, 
-           modelType, textGenMode, generatedText, 
-           setGeneratedText, reFormatText, currentWord, setCurrentWord, 
-           key, setKey, enableNextWord, setEnableNextWord, 
-           wordOptions, keysAdded, setKeysAdded, setWordOptions} = useDictContext();
+    const {enableButton, reFormatText, wordOptions} = useDictContext();
 
     //Render the wordOptions pane during manual text generation
     return (

@@ -1,5 +1,4 @@
 import React, {useState, useEffect} from "react";
-import ReactDOM from 'react-dom';
 import axios from "axios";
 import { useDictContext } from "./Context";
 
@@ -26,15 +25,12 @@ const cleanWikiText = (wikiText) => {
 export default function GenerateDict(props){
     //Get dictionary, branching factor, and number of bigrams from context manager
     const {inputText, setInputText, enableButton, setEnableButton, 
-           nGramDict, setNGramDict, modelType, setModelType,
-           frequencies, setFrequencies, branchingFactor, setBranchingFactor, 
-           generatedText,  setGeneratedText, wordCount, tokenCount, setTokenCount,
+           nGramDict, setNGramDict, modelType, frequencies, setBranchingFactor, 
+           setGeneratedText, wordCount, tokenCount, setTokenCount,
            textGenMode, get_words, build_dictionary, generate_text} = useDictContext();
     
     //Text provided state
     let [validText, setValidText] = useState(true);
-    //Dictionary generated state
-    let {dictGenerated, setDictGenerated} = props;
 
     //Wikipedia Article Title
     const [wikiArticleTitle, setWikiArticleTitle] = useState("🔍Search for a Wikipedia Article.");
@@ -43,15 +39,10 @@ export default function GenerateDict(props){
     const [wikiImported, setWikiImported] = useState(false);
 
     //To check if a Wikipedia article import has failed
-    const [wikiImportSuccessful, setWikiImportSuccesful] = useState(true);
-
-    //If the clear button for pane one has been clicked
-    const [clearPaneOneClicked, setClearPaneOneClicked] = useState(false);
+    const [wikiImportSuccessful, setWikiImportSuccessful] = useState(true);
 
     //When text is entered into the textarea
     const textRetrieval = (text) => {
-        //Whenever this is the case, change the state of the clear button (for pane one) to false
-        setClearPaneOneClicked(false);
         //Set input text
         setInputText(text.target.value)
         //Check if we are not currently performing manual text generation
@@ -60,20 +51,21 @@ export default function GenerateDict(props){
 
     //To update the token count
     useEffect(() => {
-        //Update the tokencount if the length of the words is nonzero, otherwise set to zero
+        //Update the token count if the length of the words is nonzero, otherwise set to zero
         if (inputText === "") {setTokenCount(0);}
         else {get_words(inputText);}
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [inputText])
 
     //When the title of the input Wikipedia article has been changed
     const wikiTitleChange = (title) => {
         //If the last import was unsuccessful, change the flag to true again
         if (!wikiImportSuccessful) {
-            setWikiImportSuccesful(true);
+            setWikiImportSuccessful(true);
             setInputText("");
         }
-        //Set the clear pane status to false
-        setClearPaneOneClicked(false);
         //Set title
         setWikiArticleTitle(title.target.value);
 
@@ -116,54 +108,20 @@ export default function GenerateDict(props){
         const formattedTitle = wikiArticleTitle.replaceAll(" ", "_");
     
         try {
-        console.log("Sending request to Wikipedia for article '" + formattedTitle + "'...");
-    
-        // Request to get the associated Wikipedia article with sections and wikitext
-        const wikiResponse = await axios.get(
-            `https://en.wikipedia.org/w/api.php?action=parse&format=json&page=${formattedTitle}&prop=sections|wikitext&origin=*`
-        );
-    
-        // Get all sections from the response
-        const data = wikiResponse.data;
-        console.log("WIKI RESPONSE:", wikiResponse);
-
-        // Check if the extraction was successful
-        if (data?.parse?.sections === undefined) {
-            console.log("Request succeeded, but given title is invalid.");
-    
-            // Simulate the clear button being clicked
-            clearButtonClicked();
-    
-            setInputText("Could not find article named '" + formattedTitle + "'. Please check spelling and capitalization.");
-            setWikiArticleTitle("");
-            
-            // Set the successful import flag to false
-            setWikiImportSuccesful(false);
-            
-            // Set the Wikipedia imported flag to false
-            setWikiImported(false);
-        } else {
-            
-            const sections = data.parse.sections || [];
-            // Fetch content for each section
-            const sectionsContent = await Promise.all(
-                sections.map(async (section) => {
-                const sectionText = await fetchSectionContent(formattedTitle, section.index);
-                return {
-                    title: section.line,
-                    content: removeHtmlTags(sectionText).trim().replace("\n\n", "\n"),
-                };
-                })
+            console.log("Sending request to Wikipedia for article '" + formattedTitle + "'...");
+            // Request to get the associated Wikipedia article with sections and wikitext
+            const wikiResponse = await axios.get(
+                `https://en.wikipedia.org/w/api.php?action=parse&format=json&page=${formattedTitle}&prop=sections|wikitext&origin=*`
             );
-            
-            // Concatenate the content of all sections
-            const allSectionsText = sectionsContent
-            .map((section) => `${section.title}\n\n${cleanWikiText(removeHtmlTags(section.content))}`)
-            .join('\n\n');
+        
+            // Get all sections from the response
+            const data = wikiResponse.data;
+            console.log("WIKI RESPONSE:", wikiResponse);
 
-            if (allSectionsText === "") {
+            // Check if the extraction was successful
+            if (data?.parse?.sections === undefined) {
                 console.log("Request succeeded, but given title is invalid.");
-    
+        
                 // Simulate the clear button being clicked
                 clearButtonClicked();
         
@@ -171,25 +129,58 @@ export default function GenerateDict(props){
                 setWikiArticleTitle("");
                 
                 // Set the successful import flag to false
-                setWikiImportSuccesful(false);
+                setWikiImportSuccessful(false);
                 
                 // Set the Wikipedia imported flag to false
                 setWikiImported(false);
             } else {
-                console.log("Request succeeded.");
-                // Set the input text with the content of all sections
-                setInputText(allSectionsText);
-        
-                // Set the Wikipedia Imported flag to true
-                setWikiImported(true);
                 
-                // Set the successful import flag to true
-                setWikiImportSuccesful(true);
+                const sections = data.parse.sections || [];
+                // Fetch content for each section
+                const sectionsContent = await Promise.all(
+                    sections.map(async (section) => {
+                    const sectionText = await fetchSectionContent(formattedTitle, section.index);
+                    return {
+                        title: section.line,
+                        content: removeHtmlTags(sectionText).trim().replace("\n\n", "\n"),
+                    };
+                    })
+                );
+                
+                // Concatenate the content of all sections
+                const allSectionsText = sectionsContent
+                .map((section) => `${section.title}\n\n${cleanWikiText(removeHtmlTags(section.content))}`)
+                .join('\n\n');
+
+                if (allSectionsText === "") {
+                    console.log("Request succeeded, but given title is invalid.");
+        
+                    // Simulate the clear button being clicked
+                    clearButtonClicked();
+            
+                    setInputText("Could not find article named '" + formattedTitle + "'. Please check spelling and capitalization.");
+                    setWikiArticleTitle("");
+                    
+                    // Set the successful import flag to false
+                    setWikiImportSuccessful(false);
+                    
+                    // Set the Wikipedia imported flag to false
+                    setWikiImported(false);
+                } else {
+                    console.log("Request succeeded.");
+                    // Set the input text with the content of all sections
+                    setInputText(allSectionsText);
+            
+                    // Set the Wikipedia Imported flag to true
+                    setWikiImported(true);
+                    
+                    // Set the successful import flag to true
+                    setWikiImportSuccessful(true);
+                }
             }
-        }
         } catch (error) {
-        console.log("Request to Wikipedia failed.");
-        console.log(error);
+            console.log("Request to Wikipedia failed.");
+            console.log(error);
         }
     };
     
@@ -214,17 +205,15 @@ export default function GenerateDict(props){
 
     //Handle when the clear button has been clicked (simply remove the input text from the first pane)
     const clearButtonClicked = () => {
-        //Trigger flag
-        setClearPaneOneClicked(true);
-        
-        //Set all other states to their default values
+
+        //Set all states to their default values
         setInputText("");
         setNGramDict(new Map());
         setBranchingFactor(0);
         setWikiArticleTitle("🔍Search for a Wikipedia Article.");
         setGeneratedText("Enter text or import in pane one first.");
         setWikiImported(false);
-        setWikiImportSuccesful(true);
+        setWikiImportSuccessful(true);
 
     }
 
@@ -235,15 +224,24 @@ export default function GenerateDict(props){
             //Trigger dictionary generation
             setNGramDict(build_dictionary(inputText, modelType));
         }
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modelType])
 
     useEffect(() => {
+
         if (wikiImported) {
             //Trigger dictionary generation
             setNGramDict(build_dictionary(inputText, modelType));
             //Set Wikipedia Import flag to false
             setWikiImported(false);
         }
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [wikiImported])
 
     //Generate Text when the dictionary is altered. 
@@ -251,10 +249,14 @@ export default function GenerateDict(props){
         //Check to verify that manual text generation has not taken place and that the clear button has not been clicked
         //Also check that we are not in the state just after the clear button has been clicked
         //Finally, verify that the frequencies dictionary has been built
-        if (textGenMode != "manual" && nGramDict.size !== 0 && Object.keys(frequencies).length !== 0) {
+        if (textGenMode !== "manual" && nGramDict.size !== 0 && Object.keys(frequencies).length !== 0) {
             console.log("N GRAM DICT PRIOR TO TEXT GENERATION:", nGramDict);
             setGeneratedText(generate_text(nGramDict, modelType, wordCount));
         }
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nGramDict, wordCount, frequencies])
 
     //HTML

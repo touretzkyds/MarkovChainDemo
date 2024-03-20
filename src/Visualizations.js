@@ -1,39 +1,28 @@
-import React, {useState, useEffect, useRef} from "react";
+import React, {useState, useEffect} from "react";
 import CytoscapeComponent from "react-cytoscapejs";
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 import { useDictContext } from "./Context";
-import { scryRenderedDOMComponentsWithClass } from "react-dom/test-utils";
-import { render } from "@testing-library/react";
 
 cytoscape.use(dagre);
 
 export default function Visualizations() {
 
     //Get variables needed from the shared context
-    const {nGramDict, modelType, textGenMode, setTextGenMode,
-           generatedText, setGeneratedText, manualGeneratedText, setManualGeneratedText, reFormatText, generate_text,
-           currentWord, setCurrentWord, key, setKey, 
-           enableNextWord, setEnableNextWord, keysAdded, setKeysAdded,
-           wordOptions, setWordOptions, wordCount, setWordCount,
-           clearButtonClicked, setClearButtonClicked} = useDictContext();
+    const {nGramDict, modelType, textGenMode, generatedText, 
+           reFormatText, setCurrentWord, setKey, setKeysAdded,
+           wordOptions, clearButtonClicked, setClearButtonClicked} = useDictContext();
 
     //State variable to check whether the current display has successfully been reset
     const [isReset, setIsReset] = useState(false);
 
     //Variables to store the layout, layout type, and a flag to signal whether the layout has been built
     const [layout, setLayout] = useState();
-    const [layoutName, setLayoutName] = useState("preset");
+    const layoutName = "preset";
     const [layoutBuilt, setLayoutBuilt] = useState(false);
 
     //Declare a state variable to house the graph and keep track of all added nodes
     const [graphData, setGraphData] = useState([]);
-    const [nodesAdded, setNodesAdded] = useState([]);
-
-    //Flag for whether the graph has been re-rendered at the end of text generation
-    const [graphReRendered, setGraphReRendered] = useState(false);
-    //Flag to determine whether the graph has finished rendering (automatic)
-    const [autoGraphRendered, setAutoGraphRendered] = useState(false);
 
     //Flag to determine whether the manual graph has been rendered for each instance of words
     const [manualRendered, setManualRendered] = useState(false);
@@ -44,9 +33,9 @@ export default function Visualizations() {
     //CONSTANTS FOR PANE FOUR RENDERING (maximum x and y bounds)
 
     //Maximum height of graph away from central axis for both successor layers (vertically and horizontally)
+    //For L2 successors, maximum y deviation is auto-calculated and thus does not need to be explicitly defined.
     const maxDeviationYL1 = -350;
     const maxDeviationXL1 = 120;
-    let maxDeviationYL2 = maxDeviationYL1 - 50;
     let maxDeviationXL2 = maxDeviationXL1 + 40;
     
     //Node width and height
@@ -108,17 +97,12 @@ export default function Visualizations() {
         setLayout();
         setLayoutBuilt(false);
 
-        //Empty current graph and list of both added keys (stored in context) and nodes
+        //Empty current graph and list of graph data and added keys (the latter stored in context)
         setGraphData([]);
         setKeysAdded([]);
-        setNodesAdded([]);
         //setWordOptions([]);
         setKey("");
         setCurrentWord("");
-        
-        //Set re-rendering and colour-related flags for the graph to false
-        setGraphReRendered(false);
-        setAutoGraphRendered(false);
 
         //If we are in manual mode, set the manual text to be blank
         //if (textGenMode === "manual") {setManualText("")};
@@ -130,17 +114,22 @@ export default function Visualizations() {
     //We only want to update the graph under automatic text generation mode.
     //So, when in automatic text generation mode, graph updates should be triggered by the generated text.
     //And, in manual mode, they should be triggered by the n-gram dictionary itself.
+
     useEffect(() => {
         if (textGenMode === "manual") {resetGraph();}
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [wordOptions])
     
     useEffect(() => {
         if (textGenMode === "automatic") {resetGraph();}
-    }, [generatedText])
 
-    // useEffect(() => {
-    //     resetGraph();
-    // }, [textGenMode])
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [generatedText])
 
     //Reset the graph additionally when the clear button in pane three has been clicked - this is only possible for manual text generation mode, but the execution is identical
     useEffect(() => {
@@ -148,6 +137,10 @@ export default function Visualizations() {
             //resetGraph();
             setClearButtonClicked(false);
         }
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [clearButtonClicked])
 
 
@@ -216,7 +209,6 @@ export default function Visualizations() {
             //Place point at (0, 0)
             let newGraphPoint = {data : {id : reFormatText(startKey), label : reFormatText(startKey)}, position : {x:Math.random()}};
             setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
-            setNodesAdded(existingNodes => [...existingNodes, startKey]);
             allAddedNodes.push(startKey);
         }
 
@@ -265,7 +257,7 @@ export default function Visualizations() {
         //Array to track length of each second order successor tree - needed for determining if a box must be drawn
         let successorL2Lengths = [];
 
-        for (var i = 0; i < maxFirstOrderSuccessors; i++) {
+        for (let i = 0; i < maxFirstOrderSuccessors; i++) {
 
             //Get value
             let unformattedSuccessor = successorsL1[i];
@@ -275,7 +267,7 @@ export default function Visualizations() {
             //Do the same for the nested loop
 
             //Node
-            if (counterL1 % 5 == 0) {
+            if (counterL1 % 5 === 0) {
                 xCoordinateL1 += maxDeviationXL1;
                 yCoordinateL1 = maxDeviationYL1;
                 counterL1 = 0;
@@ -290,7 +282,7 @@ export default function Visualizations() {
             //Otherwise, if we are on the final column, leverage the remainder
             let maxColumnNodes = 0;
             if (columnCounterL1 < (maxFirstOrderSuccessors / 5)) {maxColumnNodes = 5;}
-            else if (maxFirstOrderSuccessors % 5 == 0) {maxColumnNodes = 5;}
+            else if (maxFirstOrderSuccessors % 5 === 0) {maxColumnNodes = 5;}
             else {maxColumnNodes = maxFirstOrderSuccessors % 5;}
 
             yCoordinateL1 += (Math.abs(maxDeviationYL1) * 2 / (maxColumnNodes + 1));
@@ -318,7 +310,6 @@ export default function Visualizations() {
             //Add to successor L1 IDs
             successorIDsL1.push(successor + successorCount);
             
-            setNodesAdded(existingNodes => [...existingNodes, successor]);
             allAddedNodes.push(successor);
 
             //Now, generate the successors of each subtree (if required)
@@ -408,12 +399,12 @@ export default function Visualizations() {
             }
 
             //Iterate through all L2 successors
-            for (var j = 0; j < successorsL2.length; j++) {
+            for (let j = 0; j < successorsL2.length; j++) {
 
                 //Get successor word
                 let successorL2 = reFormatText(successorsL2[j]);
 
-                if (counterL2 % columnSize == 0 && counterL2 != 0) {
+                if (counterL2 % columnSize === 0 && counterL2 !== 0) {
                     xCoordinateL2 += maxDeviationXL2;
                     yCoordinateL2 = yCoordinateL1 - ((columnSize + 1) * (50 / 2));
                     counterL2 = 0;
@@ -424,47 +415,31 @@ export default function Visualizations() {
 
                 //If this is the final column, add the maximum width to the array
                 //Also push the number of columns
-                if (j == successorsL2.length - 1) {
+                if (j === successorsL2.length - 1) {
                     maxWidths.push(xCoordinateL2)
                     L2ColumnsPerRow.push(columnCounterL2);
                 }
 
-                //Determine the maximum number of nodes allowed in this column
-                let maxColumnNodesL2 = 0;
-                if (columnCounterL2 < ((l2SuccessorLength / columnSize) - 1)) {
-                    maxColumnNodesL2 = columnSize;
-                }
-                else if (l2SuccessorLength % columnSize == 0) {maxColumnNodesL2 = columnSize;}
-                else {maxColumnNodesL2 = l2SuccessorLength % columnSize;}
-
-                yCoordinateL2 += 50;//(Math.abs(50 / 2) * columnSize) / (maxColumnNodesL2 + 1);
+                yCoordinateL2 += 50;
 
                 //Add to graph (whether the successor has already been included or not is of no consequence)
                 //Use previous successor count simply to generate a new ID that is unique
-                //Check how many times the sucessor as already been added
+                //Check how many times the successor as already been added
                 let successorCountL2 = allAddedNodes.filter(node => node === successorL2).length;
                 
-
                 //If only one successor is present, do not jitter (box rendering will also be disabled for these cases).
                 //If only one successor is present while the model is NOT a bi-gram, the aforementioned nonBiGramL2PairAdded flag will be true - do NOT render any nodes if that is the case
-                
                 //Continue if all the necessary successors have already been rendered
                 
                 if (nonBiGramL2PairAdded) {continue;}
 
                 let newGraphPointL2;   
-                if (successorsL2.length > 1) {
-                    newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x : xCoordinateL2 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL2 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};
-                } else {
-                    newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};
-                }
+                if (successorsL2.length > 1) {newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x : xCoordinateL2 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL2 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};} 
+                else {newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};}
                 
                 setGraphData(existingGraph => [...existingGraph, newGraphPointL2]);
-
                 allAddedNodes.push(successorL2);
-                setNodesAdded(existingNodes => [...existingNodes, successorL2]);
                 counterL2++;
-                
 
             }
 
@@ -516,7 +491,7 @@ export default function Visualizations() {
             if (modelType !== "Bi-gram") {deviationFactor = 4;}
 
             //Iterate through each L1 successor
-            for (var i = 0; i < maxFirstOrderSuccessors; i++) {
+            for (let i = 0; i < maxFirstOrderSuccessors; i++) {
 
                 //Verify that the length of the second order successors is greater than one; if not, make the box invisible
                 let box_color = "black"
@@ -653,14 +628,20 @@ export default function Visualizations() {
     //Render graph for various text generation modes
 
     useEffect(() => {
-        if (textGenMode === "manual" && isReset && !manualRendered && generatedText !== "") {
-            renderGraph();
-        }
+        if (textGenMode === "manual" && isReset && !manualRendered && generatedText !== "") {renderGraph();}
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isReset, generatedText, textGenMode])
 
     //Each time wordOptions changes, enable the rendering of the manual graph
     useEffect(() => {
         if (textGenMode === "manual") {setManualRendered(false);}
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [generatedText])
 
     useEffect(() => {
@@ -668,9 +649,11 @@ export default function Visualizations() {
     }, [textGenMode])
 
     useEffect(() => {
-        if (textGenMode === "automatic") {
-            renderGraph();
-        }
+        if (textGenMode === "automatic") {renderGraph();}
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isReset, generatedText])
 
 
