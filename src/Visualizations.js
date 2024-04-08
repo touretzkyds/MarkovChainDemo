@@ -36,6 +36,7 @@ export default function Visualizations() {
     //For L2 successors, maximum y deviation is auto-calculated and thus does not need to be explicitly defined.
     const maxDeviationYL1 = -350;
     const maxDeviationXL1 = 120;
+    let maxDeviationYL2 = 25;
     let maxDeviationXL2 = maxDeviationXL1 + 40;
     
     //Node width and height
@@ -47,7 +48,7 @@ export default function Visualizations() {
     const jitterY = 9;
 
     //Bounding box width padding parameters (1 times the node width, 2 times the node width, 3 times, etc.)
-    const boundingBoxPadding = 1;
+    const boundingBoxPadding = 0.7;
 
     //Set graph style parameters
     const graphStyle = [
@@ -66,7 +67,7 @@ export default function Visualizations() {
                 'text-halign': 'center', // Horizontal alignment of label
                 'text-wrap' : 'wrap',
                 'text-max-width' : "95px",
-                "color" : "black"
+                "color" : "#14532D"
             }
         },
         {
@@ -154,7 +155,6 @@ export default function Visualizations() {
 
     //Function to render a given layer of successors, called upon each iteration at a time
 
-
     //Function to build graph based on dictionary
     const buildGraph = () => {
 
@@ -179,7 +179,7 @@ export default function Visualizations() {
             if (true || generatedText.trim(" ").split(" ").length <= n) {
                 startKey = generatedText.trim(" ").split(" ").slice(-n).join(" ");
             }
-            //If the generated text is longer, however, the start key will be two n behind
+            //If the generated text is longer, however, the start key will be two n behind (this is temporarily disabled)
             else {
                 let endBound = -n;
                 if (n >= 2) {endBound = -n + 1}
@@ -206,18 +206,76 @@ export default function Visualizations() {
 
         if (!startKey.split(" ").includes("undefined")) {
 
-            //Place point at (0, 0)
-            let newGraphPoint = {data : {id : reFormatText(startKey), label : reFormatText(startKey)}, position : {x:Math.random()}};
-            setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+            //For bi-gram models, simply place the word at 0,0
+            //For non-bi-gram models, stack words vertically 
+            let newGraphPoint;
+            if (modelType === "Bi-gram") {
+
+                //Create node and push
+                newGraphPoint = {data : {id : reFormatText(startKey), label : reFormatText(startKey)}, position : {x:0}};
+                setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+            
+            } else {
+
+                //Words array
+                let words = reFormatText(startKey).split(" ");
+                
+                //Set maximum y coordinate tolerance
+                let startYTolerance = 50;
+                let startYCoord = -startYTolerance;
+
+                //Determine required number of partitions
+                let p = 0;
+                if (modelType === "Tri-gram") {p = 2;}
+                else {p = 3;}
+
+                //Iterate through each word and create a node
+                for (let i = 0; i < words.length; i++){
+
+                    //Update y-coordinate
+                    startYCoord += (Math.abs(startYTolerance) * 2 / (p + 1));
+                    
+                    //Create new node
+                    let newStartNode = {data : {id : words[i] + "_START", label : words[i]}, position : {x : 0, y : startYCoord}};
+                    //Add to the graph
+                    setGraphData(existingGraph => [...existingGraph, newStartNode]);
+
+                }
+
+                //Add a bracket node to the graph
+                //Create bracket node
+                let newBracketNode = {data : {id : reFormatText(startKey) + "_BRACKET", label : "]"}, position : {x: 0 + 50, y : 0}, style : {height : 50, width : 25, "font-size" : 90}};
+                //Add to graph
+                setGraphData(existingGraph => [...existingGraph, newBracketNode]);
+                 
+                //Iterate through each, display
+                //newGraphPoint = {data : {id : reFormatText(startKey), label : reFormatText(startKey)}, position : {x:Math.random()}};
+            }
+
             allAddedNodes.push(startKey);
+
         }
 
         //Iterate through each successor word
         let successorsL1 = Array.from(nGramDict.get(startKey));
         successorsL1 = successorsL1.map(function (pair) {return pair[0];})
 
-        //Array of all L1 successor IDs (needed for the branches)
-        let successorIDsL1 = []
+        //Array of all L0L1 successor IDs (needed for the branches going from the root word to the first level)
+        let successorIDsL0L1 = [];
+        //Array of all L1L2 successor IDs (for the branches going from L1 to L2)
+        let successorIDsL1L2 = [];
+
+        //Bracket nodes
+        let bracketNodesL0L1 = [];
+        let bracketNodesL1L2 = [];
+
+        //An array to store all of the "hanging" initial phrases above branches for L2 successors when successor count is greater than one
+        let hangingInitPhrases = [];
+
+        //Add existing start bracket node to bracketNodesLOL1 (if a tri-or-tetra-gram model)
+        if (modelType !== "Bi-gram") {
+            bracketNodesL0L1.push(reFormatText(startKey) + "_BRACKET");
+        }
 
         //Current x-coordinate of L1 graph
         let xCoordinateL1 = maxDeviationXL1;
@@ -241,6 +299,9 @@ export default function Visualizations() {
         //         renderSecondOrderSuccessors = false;
         //     }
         // }
+
+        //The following array of flags will be turned to true if, for all non-bi-gram models, a single key-L2 successor pair has already been added to a single node (i.e. there is only one L2 successor)
+        let moreThanOneSuccessor = new Array(maxFirstOrderSuccessors).fill(false);
 
         //Log the positions of all of the first order successors (to aid in generating the second-order bounding box heights)
         let allFirstOrderPositions = [];
@@ -287,28 +348,188 @@ export default function Visualizations() {
 
             yCoordinateL1 += (Math.abs(maxDeviationYL1) * 2 / (maxColumnNodes + 1));
 
-            //Check how many times the sucessor as already been added
+            //Check how many times the successor as already been added
             let successorCount = allAddedNodes.filter(node => node === successor).length.toString();
 
             //Generate a node label depending on the model type
             let nodeLabel = successor;
             if (modelType === "Tri-gram") {nodeLabel = reFormatText(startKey.split(" ")[startKey.split(" ").length - 1] + " " + successor);}
             else if (modelType === "Tetra-gram") {nodeLabel = reFormatText(startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + successor);}
-
-            //Add jitter if second-order sucessors are not being rendered
+            
+            //Add jitter if second-order successors are not being rendered
+            //If we are dealing with a bi-or-tri-gram model, arrange each word vertically and store.
             if (!renderSecondOrderSuccessors) { //&& maxFirstOrderSuccessors > 1
-                let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x: xCoordinateL1 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL1 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};
-                setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+
+                if (modelType === "Bi-gram") {
+
+                    //Jittered version is commented out; feel free to uncomment it if you'd like to add it back in (and comment the first line instead)
+                    let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x: xCoordinateL1, y : yCoordinateL1}};
+                    //let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x: xCoordinateL1 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL1 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};
+                    setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+
+                } else {
+
+                    //Get words
+                    let words = nodeLabel.split(" ");
+
+                    //Store currently available y-coordinate. For tri-gram models, evenly split the words around the central axis. For tetra-gram models, 
+                    //split all three around the given axis.
+                    //Assume a maximum sub-y deviation of 30 px
+                    let maxTriTetraYDeviation = 45;
+                    let triTetraYCoord = yCoordinateL1 - maxTriTetraYDeviation;
+
+                    //Variable to determine number of required partitions
+                    let n = 0;
+                    if (modelType === "Tri-gram") {n = 2;}
+                    else {n = 3;}
+
+                    //Arrange y coordinate accordingly
+                    triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
+
+                    //Create a node from the first word
+                    let newFirstWordPoint = {data : {id : successor + successorCount + "_WORD_" + 0, label : words[0]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
+
+                    //Update y-coordinate
+                    triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
+
+                    //Create a node from the last two words, immediately below the first
+                    //For a tri-gram model, add the next word. For a tetra-gram model, add the next two words.
+                    let newEndWordsPoint;
+                    if (modelType === "Tri-gram") {
+                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
+                    } else {
+                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " " + words[2]}, position : {x: xCoordinateL1, y : triTetraYCoord + 15}};
+                    }
+
+                    //Add as the end point for the L0L1 branch and the start of the L1L2 branch
+                    //successorIDsL1L2.push(successor + successorCount + "_WORD_" + 1);
+
+                    //No brackets should be added to L1 nodes if no L2 successors are present.
+
+                    //Add both branches and the bracket node to the graph
+                    setGraphData(existingGraph => [...existingGraph, newFirstWordPoint]);
+                    setGraphData(existingGraph => [...existingGraph, newEndWordsPoint]);
+
+
+                }
+
             } else {
-                let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x : xCoordinateL1, y: yCoordinateL1}};
-                setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+
+                if (modelType === "Bi-gram") {
+
+                    let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x : xCoordinateL1, y: yCoordinateL1}};
+                    setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+                
+                } else {
+                    
+                    //Get words
+                    let words = nodeLabel.split(" ");
+
+                    //Store currently available y-coordinate. For tri-gram models, evenly split the words around the central axis. For tetra-gram models, 
+                    //split all three around the given axis.
+                    //Assume a maximum sub-y deviation of 30 px
+                    let maxTriTetraYDeviation = 45;
+                    let triTetraYCoord = yCoordinateL1 - maxTriTetraYDeviation;;
+ 
+                    //Variable to determine number of required partitions
+                    let n = 0;
+                    if (modelType === "Tri-gram") {n = 2;}
+                    else {n = 3;}
+
+                    //Iterate through all words in the key
+                    for (let i = 0; i < words.length; i++) {
+                        
+                        //Arrange y-coordinate accordingly
+                        triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
+
+                        //Create node
+                        let newTriTetraPoint = {data : {id : successor + successorCount + "_WORD_" + i, label : words[i]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
+
+                        //Add to the graph
+                        setGraphData(existingGraph => [...existingGraph, newTriTetraPoint])
+                        
+                        //If this is the final word, add to the successorIDsL0L1 list
+                        if (i === words.length - 1) {
+                            successorIDsL0L1.push(successor + successorCount + "_WORD_" + i);
+                        }
+
+                    }
+
+                    //Create bracket node and add to graph
+                    let newBracketNode = {data : {id : successor + successorCount + "_BRACKET", label : "]"}, position : {x: xCoordinateL1 + 50, y : yCoordinateL1}, style : {height : 50, width : 25, "font-size" : 90}};
+                    setGraphData(existingGraph => [...existingGraph, newBracketNode]);
+
+                    //Add to array for branch creation
+                    bracketNodesL1L2.push(successor + successorCount + "_BRACKET");
+
+                    // //Arrange y coordinate accordingly
+                    // triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
+
+                    // //Create a node from the first word
+                    // let newFirstWordPoint = {data : {id : successor + successorCount + "_WORD_" + 0, label : words[0]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
+
+                    // //Update y-coordinate
+                    // triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
+
+                    // //Create a node from the last two words, immediately below the first
+                    // //For a tri-gram model, add the next word. For a tetra-gram model, add the next two words.
+                    // let newEndWordsPoint;
+                    // if (modelType === "Tri-gram") {
+                    //     newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
+                    // } else {
+                    //     newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " " + words[2]}, position : {x: xCoordinateL1, y : triTetraYCoord + 15}};
+                    // }
+                    
+                    // //Add as the end point for the L0L1 branch and the start of the L1L2 branch
+                    // successorIDsL1L2.push(successor + successorCount + "_WORD_" + 1);
+
+                    // //Create bracket node
+                    // let newBracketNode = {data : {id : successor + successorCount + "_BRACKET", label : "]"}, position : {x: xCoordinateL1 + 50, y : yCoordinateL1}, style : {height : 50, width : 25, "font-size" : 90}};
+
+                    // //Add to array for branch creation
+                    // bracketNodesL1L2.push(successor + successorCount + "_BRACKET");
+
+                    // //Add both branches and the bracket node to the graph
+                    // setGraphData(existingGraph => [...existingGraph, newFirstWordPoint]);
+                    // setGraphData(existingGraph => [...existingGraph, newEndWordsPoint]);
+                    // setGraphData(existingGraph => [...existingGraph, newBracketNode]);
+
+                    // for (let i = 0; i < 2; i++) {
+
+                    //     //Arrange y coordinate accordingly
+                    //     triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
+
+                    //     //Create node
+                    //     let newTriTetraPoint = {data : {id : successor + successorCount + "_WORD_" + i, label : words[i]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
+                        
+                    //     //Add the first word as the end point for the L0L1 branch
+                    //     if (i === 0) {successorIDsL0L1.push(successor + successorCount + "_WORD_" + i);}
+                    //     //Add the final word (the n - 1th index) as the start point for the L1L2 branch
+                    //     if (i > 1) {successorIDsL1L2.push(successor + successorCount + "_WORD_" + i)}
+
+                    //     //Push to array
+                    //     points.push(newTriTetraPoint);
+                        
+
+                    // }
+
+                    // //Push all points to the graph
+                    // for (let j = 0; j < points.length; j++) {
+                    //     //Add to graph
+                    //     setGraphData(existingGraph => [...existingGraph, points[j]]);
+                    // }
+
+
+                }
+
             }
             
             //Increment L1 node counter
             counterL1++;
 
             //Add to successor L1 IDs
-            successorIDsL1.push(successor + successorCount);
+            //Don't do this for tri-and-tetra-gram models, as they have multiple nodes per level (logic for this has been handled above)
+            if (modelType === "Bi-gram") {successorIDsL0L1.push(successor + successorCount);}
             
             allAddedNodes.push(successor);
 
@@ -347,6 +568,36 @@ export default function Visualizations() {
             let counterL2 = 0;
             let columnCounterL2 = 0;
 
+            //If this is a tri-or-tetra-gram model, add the last one and two words respectively of the previous successor
+            //The idea is that when the user reads the L2 section, they'll see a sequence of words and then some individual words inside a box
+            //By combining the given sequence and whatever word they pick from inside the box, they'll have generated a new key
+
+            if (successorsL2.length <= 1 && modelType !== "Bi-gram") {
+
+                //Add the final words (last word for tri-gram and last two words for tetra-gram) at the beginning of the successors list such that they will be rendered
+                let n;
+                if (modelType === "Tri-gram") {n = 1;}
+                else {n = 2;}
+
+                //Add words
+                for (let i = 1; i <= n; i++) {successorsL2.unshift(reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - i]))}
+                
+                //Add false flag
+                moreThanOneSuccessor[i] = false;
+        
+            //However, if there is more than one successor, create and store the initial "hanging" phrase that will go on the branch
+            } else {
+                if (modelType === "Tri-gram") {
+                    //Add last word
+                    hangingInitPhrases.push(reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]));
+                } else if (modelType === "Tetra-gram") {
+                    //Add last two words
+                    hangingInitPhrases.push(reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 2] + " " + secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]));
+                }
+                moreThanOneSuccessor[i] = true;
+            }
+            // console.log("INITIAL MORE THAN ONE SUCCESSOR ASSIGNMENT:", moreThanOneSuccessor[i]);
+
             //L2 Successor Length (store in array as well)
             let l2SuccessorLength = successorsL2.length;
             successorL2Lengths.push(l2SuccessorLength);
@@ -355,48 +606,40 @@ export default function Visualizations() {
             let xCoordinateL2 = maxDeviationXL2 * 3;
             let yCoordinateL2; //= yCoordinateL1 - (50 * (columnSize - 1));
 
-            if (l2SuccessorLength < columnSize) {yCoordinateL2 = yCoordinateL1 - (25 * (l2SuccessorLength + 1));} 
-            else {yCoordinateL2 = yCoordinateL1 - (25 * (columnSize + 1));}
+            if (l2SuccessorLength < columnSize) {yCoordinateL2 = yCoordinateL1 - (maxDeviationYL2/2 * (l2SuccessorLength + 1));} 
+            else {yCoordinateL2 = yCoordinateL1 - (maxDeviationYL2/2 * (columnSize + 1));}
 
+            // if (modelType !== "Bi-gram") {
 
-            //If this is a tri-or-tetra-gram model, add the last one and two words respectively of the previous successor
-            //The idea is that when the user reads the L2 section, they'll see a sequence of words and then some indivdual words inside a box
-            //By combining the given sequence and whatever word they pick from inside the box, they'll have generated a new key
+            //     //Create initial word sequence; add a plus sign at the end to indicate that it will be joined by a word from the box of provided selections
+            //     let initWordSequence;
+            //     if (modelType === "Tri-gram") {
+            //         initWordSequence = reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]);
+            //     } else if (modelType === "Tetra-gram") {
+            //         initWordSequence = reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 2] + " " + secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]);
+            //     }
 
-            //The following flag will be turned to true if, for all non-bi-gram models, a single key-L2 successor pair has already been added to a single node (i.e. there is only one L2 successor)
-            let nonBiGramL2PairAdded = false;
+            //     //Check to see if one or multiple L2 successors are present. If just one, lump together with the initWordSequence. Otherwise, draw a box and join
+            //     let sequenceNodeBeforeBox;
 
-            if (modelType !== "Bi-gram") {
+            //     //Create new node with the given sequence and add to the graph
+            //     //Y-position should be identical to that of the first-order successor
 
-                //Create initial word sequence; add a plus sign at the end to indicate that it will be joined by a word from the box of provided selections
-                let initWordSequence;
-                if (modelType === "Tri-gram") {
-                    initWordSequence = reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]);
-                } else if (modelType === "Tetra-gram") {
-                    initWordSequence = reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 2] + " " + secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]);
-                }
+            //     if (l2SuccessorLength < 2) {
+            //         sequenceNodeBeforeBox = {data : {id : initWordSequence + " " + reFormatText(successorsL2[0]), label : initWordSequence + " " + reFormatText(successorsL2[0])}, position : {x: xCoordinateL2, y : yCoordinateL1}};
+            //         //Set flag
+            //         moreThanOneSuccessor = true;
+            //     } else {
+            //         sequenceNodeBeforeBox = {data : {id : initWordSequence, label : initWordSequence}, position : {x: xCoordinateL2, y : yCoordinateL1}};
+            //     }
 
-                //Check to see if one or multiple L2 successors are present. If just one, lump together with the initWordSequence. Otherwise, draw a box and join
-                let sequenceNodeBeforeBox;
+            //     //Increment the x-coordinate positioning as well; this is leveraged by both the successor positioning logic and the box drawing mechanism
+            //     xCoordinateL2 += maxDeviationXL2;
 
-                //Create new node with the given sequence and add to the graph
-                //Y-position should be identical to that of the first-order successor
+            //     //Add to graph data
+            //     setGraphData(existingGraph => [...existingGraph, sequenceNodeBeforeBox]);
 
-                if (l2SuccessorLength < 2) {
-                    sequenceNodeBeforeBox = {data : {id : initWordSequence + " " + reFormatText(successorsL2[0]), label : initWordSequence + " " + reFormatText(successorsL2[0])}, position : {x: xCoordinateL2, y : yCoordinateL1}};
-                    //Set flag
-                    nonBiGramL2PairAdded = true;
-                } else {
-                    sequenceNodeBeforeBox = {data : {id : initWordSequence, label : initWordSequence}, position : {x: xCoordinateL2, y : yCoordinateL1}};
-                }
-
-                //Increment the x-coordinate positioning as well; this is leveraged by both the successor positioning logic and the box drawing mechanism
-                xCoordinateL2 += maxDeviationXL2;
-
-                //Add to graph data
-                setGraphData(existingGraph => [...existingGraph, sequenceNodeBeforeBox]);
-
-            }
+            // }
 
             //Iterate through all L2 successors
             for (let j = 0; j < successorsL2.length; j++) {
@@ -406,7 +649,7 @@ export default function Visualizations() {
 
                 if (counterL2 % columnSize === 0 && counterL2 !== 0) {
                     xCoordinateL2 += maxDeviationXL2;
-                    yCoordinateL2 = yCoordinateL1 - ((columnSize + 1) * (50 / 2));
+                    yCoordinateL2 = yCoordinateL1 - ((columnSize + 1) * (maxDeviationYL2 / 2));
                     counterL2 = 0;
 
                     //Increment second order column counter
@@ -420,7 +663,7 @@ export default function Visualizations() {
                     L2ColumnsPerRow.push(columnCounterL2);
                 }
 
-                yCoordinateL2 += 50;
+                yCoordinateL2 += maxDeviationYL2//(Math.abs(maxDeviationYL2) * 2) / (counterL2 + 1);
 
                 //Add to graph (whether the successor has already been included or not is of no consequence)
                 //Use previous successor count simply to generate a new ID that is unique
@@ -428,18 +671,27 @@ export default function Visualizations() {
                 let successorCountL2 = allAddedNodes.filter(node => node === successorL2).length;
                 
                 //If only one successor is present, do not jitter (box rendering will also be disabled for these cases).
-                //If only one successor is present while the model is NOT a bi-gram, the aforementioned nonBiGramL2PairAdded flag will be true - do NOT render any nodes if that is the case
+                //If only one successor is present while the model is NOT a bi-gram, the aforementioned moreThanOneSuccessor flag will be true - do NOT render any nodes if that is the case
                 //Continue if all the necessary successors have already been rendered
                 
-                if (nonBiGramL2PairAdded) {continue;}
+                //if (moreThanOneSuccessor) {continue;}
 
-                let newGraphPointL2;   
-                if (successorsL2.length > 1) {newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x : xCoordinateL2 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL2 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};} 
-                else {newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};}
-                
+                let newGraphPointL2; 
+                //This line is commented out -> jitter has been temporarily disabled. If you would like to re-enable it, simply comment the third line and uncomment the next two.
+                // if (successorsL2.length > 1) {newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x : xCoordinateL2 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL2 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};} 
+                // else {newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};}
+                newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};
+
                 setGraphData(existingGraph => [...existingGraph, newGraphPointL2]);
                 allAddedNodes.push(successorL2);
                 counterL2++;
+
+                //If there is only one successor (keep in mind that the final words of the previous key have been added to successorsL2.length), add the final word to successorIDsL1L2 array
+                if (!moreThanOneSuccessor[i] && j === successorsL2.length - 1) {
+                    successorIDsL1L2.push(successorL2 + successorCountL2);
+                //Otherwise, push an empty string (blank)
+                } else if (moreThanOneSuccessor[i] && j === successorsL2.length - 1){successorIDsL1L2.push("");}
+                
 
             }
 
@@ -513,81 +765,122 @@ export default function Visualizations() {
 
                 //Box colour is set to white if not 
                 
-                if (modelType !== "Bi-gram") {
+                // if (modelType !== "Bi-gram") {
 
-                    //Calculate outer left bound for the outer box
-                    outerLeftPos = 3 * maxDeviationXL2 - (boundingBoxPadding * nodeWidth);
+                //     //Calculate outer left bound for the outer box
+                //     outerLeftPos = 3 * maxDeviationXL2 - (boundingBoxPadding * nodeWidth);
 
-                    const innerBoxDist = Math.abs(rightPos - leftPos);
-                    const innerMidpoint = (rightPos + leftPos) / 2;
+                //     const innerBoxDist = Math.abs(rightPos - leftPos);
+                //     const innerMidpoint = (rightPos + leftPos) / 2;
 
-                    //Create the inner box
-                    //Set the actual L2 bounding box
-                    const innerBoundingBox = {
-                        "group" : "nodes",
-                        data : {id : "BOX_L2_INNER_" + i, label : ""},
-                        position : {
-                            x : innerMidpoint,//(maxWidths[i] - (3 * maxDeviationXL2))/2 + (3 * maxDeviationXL2),//(((100 + maxWidths[i]) - (3 * maxDeviationXL2)) / 2) + 3 * maxDeviationXL1,
-                            y: allFirstOrderPositions[i],
-                        },
-                        style : {
-                            width : innerBoxDist - 50 + "px",//(maxWidths[i] - (3 * maxDeviationXL2)) + ((maxWidths[i] - (3 * maxDeviationXL2)) / 2),//(maxWidths[i] + 50) - ((3 * maxDeviationXL2) - 50),//(100 * (L2ColumnsPerRow[i] + 1)) + (maxDeviationXL2 * (L2ColumnsPerRow[i])),
-                            height : (columnSizes[i] + 1) * 40,//(columnSizes + 1) * 25 + 20,
-                            shape : "roundrectangle",
-                            'background-color' : "white",
-                            "background-opacity" : 0,
-                            "border-width" : 3,
-                            "border-color" : box_color,
-                            "z-index" : 9999
-                        }
-                    }
+                //     //Create the inner box
+                //     //Set the actual L2 bounding box
+                //     const innerBoundingBox = {
+                //         "group" : "nodes",
+                //         data : {id : "BOX_L2_INNER_" + i, label : ""},
+                //         position : {
+                //             x : innerMidpoint,//(maxWidths[i] - (3 * maxDeviationXL2))/2 + (3 * maxDeviationXL2),//(((100 + maxWidths[i]) - (3 * maxDeviationXL2)) / 2) + 3 * maxDeviationXL1,
+                //             y: allFirstOrderPositions[i],
+                //         },
+                //         style : {
+                //             width : innerBoxDist - 50 + "px",//(maxWidths[i] - (3 * maxDeviationXL2)) + ((maxWidths[i] - (3 * maxDeviationXL2)) / 2),//(maxWidths[i] + 50) - ((3 * maxDeviationXL2) - 50),//(100 * (L2ColumnsPerRow[i] + 1)) + (maxDeviationXL2 * (L2ColumnsPerRow[i])),
+                //             height : (columnSizes[i] + 1) * 40,//(columnSizes + 1) * 25 + 20,
+                //             shape : "roundrectangle",
+                //             'background-color' : "white",
+                //             "background-opacity" : 0,
+                //             "border-width" : 3,
+                //             "border-color" : box_color,
+                //             "z-index" : 9999
+                //         }
+                //     }
 
-                    //Add box to graph
-                    setGraphData(existingGraph => [...existingGraph, innerBoundingBox])
+                //     //Add box to graph
+                //     setGraphData(existingGraph => [...existingGraph, innerBoundingBox])
 
-                    //Set box colour to white if the model is not a bi-gram one
-                    box_color = "white";
+                //     //Set box colour to white if the model is not a bi-gram one
+                //     box_color = "white";
 
-                }
+                // }
 
                 //Find distance between left and right bounding boxes
                 const boxDist = Math.abs(rightPos - outerLeftPos);
                 //Find the midpoint
                 const midpoint = (rightPos + outerLeftPos) / 2;
+                
+                //Don't create a box if only one L2 successor is present
+                if (moreThanOneSuccessor[i]) {
 
-                //If this box is a single successor (i.e. a single word), shrink the height dramatically to prevent any overlap between the white and black borders
-                let height;
-                if (box_color === "white" && modelType === "Bi-gram") {height = 77;}
-                else {height = (columnSizes[i] + 1) * 40};
+                    //But, if multiple L2 successors are present, render boxes
+                    //Later, we'll render the hanging initial phrases on top of the arrows (branches) themselves
 
-                //Set the actual L2 bounding box
-                const boundingBox = {
-                    "group" : "nodes",
-                    data : {id : "BOX_L2_" + i, label : ""},
-                    position : {
-                        x : midpoint,//(maxWidths[i] - (3 * maxDeviationXL2))/2 + (3 * maxDeviationXL2),//(((100 + maxWidths[i]) - (3 * maxDeviationXL2)) / 2) + 3 * maxDeviationXL1,
-                        y: allFirstOrderPositions[i],
-                    },
-                    style : {
-                        width : boxDist + "px",//(maxWidths[i] - (3 * maxDeviationXL2)) + ((maxWidths[i] - (3 * maxDeviationXL2)) / 2),//(maxWidths[i] + 50) - ((3 * maxDeviationXL2) - 50),//(100 * (L2ColumnsPerRow[i] + 1)) + (maxDeviationXL2 * (L2ColumnsPerRow[i])),
-                        height : height,
-                        shape : "roundrectangle",
-                        'background-color' : "white",
-                        "background-opacity" : 0,
-                        "border-width" : 3,
-                        "border-color" : box_color,
+                    //If this box is a single successor (i.e. a single word), shrink the height dramatically to prevent any overlap between the white and black borders
+                    let height;
+                    if (box_color === "white" && modelType === "Bi-gram") {height = 77;}
+                    else {height = (columnSizes[i] + 1) * 40};
+
+                    //Set the actual L2 bounding box
+                    const boundingBox = {
+                        "group" : "nodes",
+                        data : {id : "BOX_L2_" + i, label : ""},
+                        position : {
+                            x : midpoint,//(maxWidths[i] - (3 * maxDeviationXL2))/2 + (3 * maxDeviationXL2),//(((100 + maxWidths[i]) - (3 * maxDeviationXL2)) / 2) + 3 * maxDeviationXL1,
+                            y: allFirstOrderPositions[i],
+                        },
+                        style : {
+                            width : boxDist + "px",//(maxWidths[i] - (3 * maxDeviationXL2)) + ((maxWidths[i] - (3 * maxDeviationXL2)) / 2),//(maxWidths[i] + 50) - ((3 * maxDeviationXL2) - 50),//(100 * (L2ColumnsPerRow[i] + 1)) + (maxDeviationXL2 * (L2ColumnsPerRow[i])),
+                            height : height,
+                            shape : "roundrectangle",
+                            'background-color' : "white",
+                            "background-opacity" : 0,
+                            "border-width" : 3,
+                            "border-color" : box_color,
+                        }
                     }
+
+                    //Add box to graph
+                    setGraphData(existingGraph => [...existingGraph, boundingBox])
+            
                 }
 
-                //Add box to graph
-                setGraphData(existingGraph => [...existingGraph, boundingBox])
-
                 //Create branches
-                let newBranchL2 = {data : {source : successorIDsL1[i], target : "BOX_L2_" + i, label : successorIDsL1[i] + "BOX_L2_" + i}};
-                setGraphData(existingGraph => [...existingGraph, newBranchL2]);
 
-                let newBranchStartL2 = {data : {source : reFormatText(startKey), target : successorIDsL1[i], label : reFormatText(startKey) + successorIDsL1[i]}};
-                setGraphData(existingGraph => [...existingGraph, newBranchStartL2]);
+                //From the source word to the first level
+                //For tri-and-tetra-gram models, the target should be the successorIDsL1L2 array element for the given set
+                let newBranchL0L1;
+                if (modelType === "Bi-gram") {
+                    newBranchL0L1 = {data : {source : reFormatText(startKey), target : successorIDsL0L1[i], label : reFormatText(startKey) + successorIDsL0L1[i]}};
+                } else {
+                    newBranchL0L1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : successorIDsL0L1[i], label : reFormatText(startKey) + successorIDsL1L2[i]}};
+                }
+                setGraphData(existingGraph => [...existingGraph, newBranchL0L1]);
+
+                //From the first level to the second. For bi-gram models, this is the same word.
+                //For tri-and-tetra gram models, use the successorIDsL1L2 array (as we want the source of the branch to be the final word for a given key)
+                let newBranchL1L2;
+                if (modelType === "Bi-gram") {
+                    newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : successorIDsL0L1[i] + "_BOX_L2_" + i}};
+                } else {
+                    //If there is only one L2 successor, point directly to the final word.
+                    if (!moreThanOneSuccessor[i]) {
+                        newBranchL1L2 = {data : {source : bracketNodesL1L2[i], target : successorIDsL1L2[i], label : successorIDsL1L2[i] + "_FINAL_BRANCH" + i}};
+                    //Otherwise, point to the box.
+                    } else {
+                        newBranchL1L2 = {data : {source : bracketNodesL1L2[i], target : "BOX_L2_" + i, label : successorIDsL1L2[i] + "_BOX_L2_" + i}};
+                    }
+                }
+                
+                setGraphData(existingGraph => [...existingGraph, newBranchL1L2]);
+
+                //If more than one successor is present, as mentioned earlier, we must add the hanging initial phrases on top of the given branches
+                if (moreThanOneSuccessor[i]) {
+
+                    //Use width and y position of the box (remember that if we have more than one successor, a box must be present)
+                    //Create node from the hangingInitPhrases array
+                    let newHangingNode = {data : {id : hangingInitPhrases[i] + "_HANGING_PHRASE_" + i, label : hangingInitPhrases[i]}, position : {x: (midpoint - (0.5 * boxDist)) - 40, y : allFirstOrderPositions[i] - 25}};
+                
+                    //Add to graph
+                    setGraphData(existingGraph => [...existingGraph, newHangingNode]);
+                }
 
             }
         }
