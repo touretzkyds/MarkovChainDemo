@@ -1,3 +1,4 @@
+import { all } from 'axios';
 import React, {createContext, useState, useContext} from 'react';
 
 //Generate context
@@ -174,6 +175,7 @@ export const DictContextProvider = ({ children }) => {
 
         // "It has been said that astronomy is a humbling and character-building experience. There is perhaps no better demonstration of the folly of human conceits than this distant image of our tiny world. To me, it underscores our responsibility to deal more kindly with one another, and to preserve and cherish the pale blue dot, the only home we've ever known."
     );
+
     //Set Map, Branching Factor, and Gram Count Variables
     const [nGramDict, setNGramDict] = useState(new Map());
     const [branchingFactor, setBranchingFactor] = useState(0);
@@ -184,6 +186,12 @@ export const DictContextProvider = ({ children }) => {
 
     //Set model type
     const [modelType, setModelType] = useState("Bi-gram");
+    //Variable to detect if a dictionary element (forcing a render of pane four) has been clicked
+    const [pane2KeyClicked, setPane2KeyClicked] = useState(false);
+    //Variable to set whether pane four should generate text based on a manually-generated start key
+    const [manualStartKey, setManualStartKey] = useState(false);
+    //Variable to dynamically set the startKey
+    const [globalStartKey, setGlobalStartKey] = useState("");
 
     //To store frequency of words in the dictionary
     const [frequencies, setFrequencies] = useState({});
@@ -199,6 +207,8 @@ export const DictContextProvider = ({ children }) => {
 
     //Mode of text generation
     const [textGenMode, setTextGenMode] = useState("automatic");
+    //If text has been visualized
+    const [textVisualized, setTextVisualized] = useState(false);
 
     //For automatic visualizations
     const [autoGraphAllowed, setAutoGraphAllowed] = useState(true);
@@ -228,6 +238,19 @@ export const DictContextProvider = ({ children }) => {
             }
         }).trim()
         return reFormattedText;
+    }
+
+    //A function to reverse the formatting of the display text when needed
+    const unFormatText = (input) => {
+        const unFormattedText = input.replace(/<[^>]+>/g, word => {
+            switch (word) {
+                case "<PERIOD>": return ".";
+                case "<EXCL>": return "!";
+                case "<Q>": return "?";
+                default: return word;
+            }
+        }).trim()
+        return unFormattedText;
     }
 
     // ======== ALL PREPROCESSING FUNCTIONS (REFACTORED INTO JSX FROM PYTHON) ========
@@ -282,7 +305,7 @@ export const DictContextProvider = ({ children }) => {
         //Blank bigram map
         const bigram_map = new Map();
         //Iterate over words
-        for (var i = 0; i < words.length - 1; i++) {
+        for (let i = 0; i < words.length - 1; i++) {
 
             //Get key value pair
             const key = words[i];
@@ -301,6 +324,33 @@ export const DictContextProvider = ({ children }) => {
             }
 
             value_map.set(value, value_map.get(value) + 1)
+        }
+
+        //Replace all frequency measurements with probabilities
+        //Iterate again over words
+        for (let i = 0; i < words.length - 1; i ++) {
+            
+            let key = words[i];
+            let values = Array.from(bigram_map.get(key));
+
+            //Get all frequencies, sum, and normalize.
+            let allFrequencies = [];
+            for (let i = 0; i < values.length; i++) {allFrequencies.push(values[i][1]);}
+            const freqSum = allFrequencies.reduce((incompleteSum, f) => incompleteSum + f, 0);
+            
+            //Normalize
+            const normFactor = 1.0/freqSum;
+            for (let i = 0; i < allFrequencies.length; i++) {allFrequencies[i] = allFrequencies[i] * normFactor;}
+
+            //Replace frequencies with probabilities
+            let value_map = bigram_map.get(key);
+            let j = 0;
+
+            for (let [valueKey, valueProb] of value_map) {
+                value_map.set(valueKey, parseFloat(allFrequencies[j].toFixed(2)));
+                j++;
+            }
+            
         }
 
         return bigram_map
@@ -341,6 +391,33 @@ export const DictContextProvider = ({ children }) => {
             value_map.set(value, value_map.get(value) + 1);
         }
 
+                //Replace all frequency measurements with probabilities
+        //Iterate again over words
+        for (let i = 0; i < words.length - 2; i ++) {
+            
+            let key = words[i] + " " + words[i + 1];
+            let values = Array.from(trigram_map.get(key));
+
+            //Get all frequencies, sum, and normalize.
+            let allFrequencies = [];
+            for (let i = 0; i < values.length; i++) {allFrequencies.push(values[i][1]);}
+            const freqSum = allFrequencies.reduce((incompleteSum, f) => incompleteSum + f, 0);
+            
+            //Normalize
+            const normFactor = 1.0/freqSum;
+            for (let i = 0; i < allFrequencies.length; i++) {allFrequencies[i] = allFrequencies[i] * normFactor;}
+
+            //Replace frequencies with probabilities
+            let value_map = trigram_map.get(key);
+            let j = 0;
+
+            for (let [valueKey, valueProb] of value_map) {
+                value_map.set(valueKey, parseFloat(allFrequencies[j].toFixed(2)));
+                j++;
+            }
+            
+        }
+
         //Return dictionary
         return trigram_map
     }
@@ -355,7 +432,7 @@ export const DictContextProvider = ({ children }) => {
         const tetragram_map = new Map();
 
         //Iterate over words
-        for (var i = 0; i < words.length - 3; i++) {
+        for (let i = 0; i < words.length - 3; i++) {
 
             //Get key value pair (keys consist of three words, value is thus three positions ahead)
             const key = words[i] + " " + words[i+1] + " " + words[i+2];
@@ -376,6 +453,32 @@ export const DictContextProvider = ({ children }) => {
 
             //Set frequency
             value_map.set(value, value_map.get(value) + 1);
+        }
+
+        for (let i = 0; i < words.length - 3; i ++) {
+            
+            let key = words[i] + " " + words[i+1] + " " + words[i+2];
+            console.log("GIVEN KEY:", key)
+            let values = Array.from(tetragram_map.get(key));
+
+            //Get all frequencies, sum, and normalize.
+            let allFrequencies = [];
+            for (let i = 0; i < values.length; i++) {allFrequencies.push(values[i][1]);}
+            const freqSum = allFrequencies.reduce((incompleteSum, f) => incompleteSum + f, 0);
+            
+            //Normalize
+            const normFactor = 1.0/freqSum;
+            for (let i = 0; i < allFrequencies.length; i++) {allFrequencies[i] = allFrequencies[i] * normFactor;}
+
+            //Replace frequencies with probabilities
+            let value_map = tetragram_map.get(key);
+            let j = 0;
+
+            for (let [valueKey, valueProb] of value_map) {
+                value_map.set(valueKey, parseFloat(allFrequencies[j].toFixed(2)));
+                j++;
+            }
+            
         }
 
         //Return dictionary
@@ -442,7 +545,8 @@ export const DictContextProvider = ({ children }) => {
         const keys = bigram_arr.map(function (pair) {return pair[0];});
         
         //Check if no starting point has been specified
-        if (start === null) {
+        console.log("THE VALUE OF START:", start);
+        if (start === null || start === "") {
             //Choose a random key to start
             start = keys[Math.floor(Math.random() * keys.length)];
         
@@ -665,12 +769,12 @@ export const DictContextProvider = ({ children }) => {
 
     //Generate Text Function. This will be called both autonomously (when building dictionaries and changing models) as well as when the button is clicked.
     //When the generate button is clicked, perform a get request and retrieve the generated text.
-    const generate_text = (gen_map, model_type, word_count) => {
+    const generate_text = (start, gen_map, model_type, word_count) => {
         //Identify model type and generate text accordingly
         let gen_text = "";
-        if (model_type === "Bi-gram") {gen_text = gen_bigram(null, gen_map, word_count);}
-        else if (model_type === "Tri-gram") {gen_text = gen_trigram(null, gen_map, word_count);}
-        else if (model_type === "Tetra-gram") {gen_text = gen_tetragram(null, gen_map, word_count);}
+        if (model_type === "Bi-gram") {gen_text = gen_bigram(start, gen_map, word_count);}
+        else if (model_type === "Tri-gram") {gen_text = gen_trigram(start, gen_map, word_count);}
+        else if (model_type === "Tetra-gram") {gen_text = gen_tetragram(start, gen_map, word_count);}
         //Raise error for invalid model type
         else {throw ReferenceError("Invalid model type supplied to generateText (expected 'Bi-gram', 'Tri-gram', or 'Tetra-gram').")}
         //Return text
@@ -693,6 +797,12 @@ export const DictContextProvider = ({ children }) => {
             setLenDict,
             modelType,
             setModelType,
+            pane2KeyClicked,
+            setPane2KeyClicked,
+            manualStartKey,
+            setManualStartKey,
+            globalStartKey,
+            setGlobalStartKey,
             frequencies,
             setFrequencies,
             generatedText,
@@ -705,6 +815,8 @@ export const DictContextProvider = ({ children }) => {
             setTokenCount,
             textGenMode,
             setTextGenMode,
+            textVisualized,
+            setTextVisualized,
             autoGraphAllowed,
             setAutoGraphAllowed,
             currentWord,
@@ -723,6 +835,7 @@ export const DictContextProvider = ({ children }) => {
             setClearButtonClicked,
             //Helper Functions
             reFormatText,
+            unFormatText,
             //Markov Chain Implementation Functions
             get_words,
             make_bigram_dict,

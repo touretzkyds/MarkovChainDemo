@@ -8,10 +8,72 @@ cytoscape.use(dagre);
 
 export default function Visualizations() {
 
+
+    /*
+
+    Some ideas for the multi-pane visualizations that are needed for the re-sizing algorithm.
+
+    Rather than re-placing and re-moving all of the words, we should place them in the right spot the first time.
+
+    We should write a separate function that deals with taking all of the current positions for all of the different words, and then rendering them.
+
+    //Or actually - it hasn't been rendered yet.
+
+    Add stuff to the graph data portion first.
+
+    Then, here's what we're going to do. We're going to set a function that takes in the maximum number of columns - perhaps 11.
+    The goal is for the function to optimize this function by maximizing the amount of rows filled, with the counter goal of
+    minimizing the total length for any given set of L2 successors.
+    How do we actually do this?
+    Well, we have to check the input variables. There are two - the number of rows, and the successor chosen to make this happen.
+    What's the mathematical relationship between the two?
+
+    1-to-1 -> increasing the number of rows will just add 1 to the column size
+
+
+---
+
+Alright, let's clean things up. Every single thing should be its own function.
+
+We have a function for building the graph. Let's make a general outline and figure out what goes where.
+
+1. Figure out what the start word is, based on the value of n. Create the vertically stacked node.
+2. Find L1 successors, create brackets, and set up variables. Determine the length of second-order successors, and whether or not they should be rendered
+3. Iterate through all first-order successors. Change columns when appropriate, and align based on the max number of words allowed per column. For each iteration, change the y-coordinate.
+4a. Generate, iteratively, the first-order successors. For bi-gram models, simply place the node. For tri-and-tetra-gram models, iteratively generate the L1 successors in a vertical stack.
+4b. If generating second-order successors, also add bracket nodes to the right (and append to the respective array).
+ --> This could most likely be simplified further. 
+5. If a bi-gram model, add the successor directly to the array,
+6. Now, if generating second-order successors, create the second order keys, generate the successors, and figure out the maximum allowable size for each column (max columnSize)
+7. For tri-and-tetra-gram models, add the previous hanging key before adding the remainder of the successors
+8. Set x-and-y coordinates. Use the columnSize if more than one column, or simply the length of the successors if this is not the case.
+9. Iterate through each one of the second-order successors, accounting for the final column, and generate the respective elements.
+10. Generate boxes around the respective elements, based on the stored starting positions.
+
+Where should the iterative "longest guy" algorithm take place?
+Well, what does it entail?
+a) Basically, the goal is to reduce the width of the ENTIRE graph - the longest guy. 
+b) This doesn't necessarily mean squeeze everything all into one column. Instead, it means that the longest row should be as short as possible
+c) Where there's room, we want to split an existing set of words across both columns -> creating an even distribution.
+
+So, how do we do this? 
+
+Well, we could just place everything on the graph and then slowly find the longest guy and keep reducing it's length until it's no longer the longest guy
+This would require a lot of rearrangements...ideally, we want to start off with the correct positions and only render the graph once.
+Create an array with the maximum length sizes of L2 successor set. [5, 3, 10, 2] Also keep track of the total number of rows used (with a maximum upper bound set)
+Find the longest one. Reduce as much as possible -> either until it's less than the next largest successor, or until the total number of columns have been exceeded.
+The intuition makes sense. The question is - how do we implement this, while managing all of the different IDs that have been created? 
+Well, the rendering logic is the same - the same method for calculating x-and-y coordinates. The only thing that's changing is the actual column size.
+We don't even have to render this iteratively. n_columns = total/column_size. We keep doing total/column_size until one of the two exit conditions mentioned above are met, and then we draw the graph.
+And, we can gene3rate the initial array of longest guys from this logic as well. We don't need to generate the L2 successors based on each L1 successor; we can do them separately as long as the flag is true.
+
+*/
+
+
     //Get variables needed from the shared context
     const {nGramDict, modelType, textGenMode, generatedText, 
-           reFormatText, setCurrentWord, setKey, setKeysAdded,
-           wordOptions, clearButtonClicked, setClearButtonClicked} = useDictContext();
+           reFormatText, unFormatText, pane2KeyClicked, setPane2KeyClicked, globalStartKey, setGlobalStartKey, manualStartKey, setManualStartKey,
+           setCurrentWord, setKey, setKeysAdded, wordOptions, clearButtonClicked, setClearButtonClicked} = useDictContext();
 
     //State variable to check whether the current display has successfully been reset
     const [isReset, setIsReset] = useState(false);
@@ -35,12 +97,12 @@ export default function Visualizations() {
     //Maximum height of graph away from central axis for both successor layers (vertically and horizontally)
     //For L2 successors, maximum y deviation is auto-calculated and thus does not need to be explicitly defined.
     const maxDeviationYL1 = -350;
-    const maxDeviationXL1 = 120;
+    const maxDeviationXL1 = 140;
     let maxDeviationYL2 = 25;
     let maxDeviationXL2 = maxDeviationXL1 + 40;
     
     //Node width and height
-    const nodeWidth = 100;
+    const nodeWidth = 150;
     const nodeHeight = 50;
 
     //Jitter parameters
@@ -66,7 +128,7 @@ export default function Visualizations() {
                 'text-valign': 'center', // Vertical alignment of label
                 'text-halign': 'center', // Horizontal alignment of label
                 'text-wrap' : 'wrap',
-                'text-max-width' : "95px",
+                'text-max-width' : nodeWidth + 20,
                 "color" : "#14532D"
             }
         },
@@ -79,7 +141,9 @@ export default function Visualizations() {
                 "curve-style" : "bezier",
                 'target-arrow-shape': 'triangle',
                 'target-arrow-color' : 'black',
-                'source-arrow-color' : 'black'
+                'source-arrow-color' : 'black',
+                "label" : "data(label)",
+                "text-margin-y" : "-20"
             }
         }
     ]
@@ -125,12 +189,22 @@ export default function Visualizations() {
     }, [wordOptions])
     
     useEffect(() => {
-        if (textGenMode === "automatic") {resetGraph();}
+        if (textGenMode === "automatic" && !manualStartKey) {resetGraph();}
 
         //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [generatedText])
+
+    useEffect(() => {
+        if (textGenMode === "automatic" && pane2KeyClicked) {
+            resetGraph();
+        }
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pane2KeyClicked])
 
     //Reset the graph additionally when the clear button in pane three has been clicked - this is only possible for manual text generation mode, but the execution is identical
     useEffect(() => {
@@ -153,6 +227,26 @@ export default function Visualizations() {
         }
     }, [layout, layoutBuilt, graphData])
 
+    //Function to generate factors given a number (incredibly useful when rendering column sizes)
+    //Efficient solution - source https://stackoverflow.com/questions/22130043/trying-to-find-factors-of-a-number-in-js
+    const findFactors = (number) => {
+        
+        //Check if the number is even
+        const isEven = number % 2 === 0;
+        const max = Math.sqrt(number);
+        const inc = isEven ? 1 : 2;
+        let factors = [1, number];
+
+        for (let curFactor = isEven ? 2 : 3; curFactor <= max; curFactor += inc) {
+            if (number % curFactor !== 0) {continue;}
+            factors.push(curFactor);
+            let complement = number / curFactor;
+            if (complement !== curFactor) {factors.push(complement);}
+        }
+        
+        return factors;
+    }
+
     //Function to render a given layer of successors, called upon each iteration at a time
 
     //Function to build graph based on dictionary
@@ -168,39 +262,47 @@ export default function Visualizations() {
         //If the text generation mode is manual, pick the start key based on the final keys of the generated text if they exist
         let startKey = "";
 
-        if (textGenMode === "manual") {
-            
-            //Based on the model type, decide the final n words to check
-            let n = 1;
-            if (modelType === "Tri-gram") {n = 2;}
-            else if (modelType === "Tetra-gram") {n = 3;}
-            
-            //Check to see if the generated text is long enough, if not, then use as start key without additional concerns
-            if (true || generatedText.trim(" ").split(" ").length <= n) {
-                startKey = generatedText.trim(" ").split(" ").slice(-n).join(" ");
-            }
-            //If the generated text is longer, however, the start key will be two n behind (this is temporarily disabled)
-            else {
-                let endBound = -n;
-                if (n >= 2) {endBound = -n + 1}
-                startKey = generatedText.trim(" ").split(" ").slice(-2 * n, endBound).join(" ");
-            }
-            
-            startKey = startKey.trim(" ");
-
-            if (n === 1 && startKey.trim(" ").split(" ").length >= 2) {
-                startKey = startKey.trim(" ").split(" ")[0]
-            }
-            //Set as current word
-            //setCurrentWord(startKey);
-
-            //Set the manual rendered flag as true
-            setManualRendered(true);
-
+        //However, if the dictionary key has been clicked by the user, leverage that as the starting point instead
+        if (manualStartKey) {
+            startKey = globalStartKey;
+            setManualStartKey(false);
         } else {
-            //Otherwise, pick a word from the dictionary at random, add to graph (if not already present) and added node list
-            startKey = dictKeys[Math.floor(Math.random() * dictKeys.length)];
+            if (textGenMode === "manual") {
+            
+                //Based on the model type, decide the final n words to check
+                let n = 1;
+                if (modelType === "Tri-gram") {n = 2;}
+                else if (modelType === "Tetra-gram") {n = 3;}
+                
+                //Check to see if the generated text is long enough, if not, then use as start key without additional concerns
+                if (true || generatedText.trim(" ").split(" ").length <= n) {
+                    startKey = generatedText.trim(" ").split(" ").slice(-n).join(" ");
+                }
+                //If the generated text is longer, however, the start key will be two n behind (this is temporarily disabled)
+                else {
+                    let endBound = -n;
+                    if (n >= 2) {endBound = -n + 1}
+                    startKey = generatedText.trim(" ").split(" ").slice(-2 * n, endBound).join(" ");
+                }
+                
+                startKey = startKey.trim(" ");
+    
+                if (n === 1 && startKey.trim(" ").split(" ").length >= 2) {
+                    startKey = startKey.trim(" ").split(" ")[0]
+                }
+                //Set as current word
+                //setCurrentWord(startKey);
+    
+                //Set the manual rendered flag as true
+                setManualRendered(true);
+    
+            } else {
+                //Otherwise, pick a word from the dictionary at random, add to graph (if not already present) and added node list
+                startKey = dictKeys[Math.floor(Math.random() * dictKeys.length)];
+            }
         }
+
+
 
         if (startKey === undefined || startKey === null || startKey === "") {return}
 
@@ -265,6 +367,7 @@ export default function Visualizations() {
         //Array of all L1L2 successor IDs (for the branches going from L1 to L2)
         let successorIDsL1L2 = [];
 
+
         //Bracket nodes
         let bracketNodesL0L1 = [];
         let bracketNodesL1L2 = [];
@@ -318,6 +421,8 @@ export default function Visualizations() {
         //Array to track length of each second order successor tree - needed for determining if a box must be drawn
         let successorL2Lengths = [];
 
+        //Array 
+
         for (let i = 0; i < maxFirstOrderSuccessors; i++) {
 
             //Get value
@@ -363,7 +468,9 @@ export default function Visualizations() {
                 if (modelType === "Bi-gram") {
 
                     //Jittered version is commented out; feel free to uncomment it if you'd like to add it back in (and comment the first line instead)
-                    let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x: xCoordinateL1, y : yCoordinateL1}};
+                    //Include probability of occurrence in the label
+                    let prob = nGramDict.get(startKey).get(unformattedSuccessor);
+                    let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel + " (" + prob + ")"}, position : {x: xCoordinateL1, y : yCoordinateL1}};
                     //let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x: xCoordinateL1 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL1 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};
                     setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
 
@@ -429,7 +536,7 @@ export default function Visualizations() {
                     //split all three around the given axis.
                     //Assume a maximum sub-y deviation of 30 px
                     let maxTriTetraYDeviation = 45;
-                    let triTetraYCoord = yCoordinateL1 - maxTriTetraYDeviation;;
+                    let triTetraYCoord = yCoordinateL1 - maxTriTetraYDeviation;
  
                     //Variable to determine number of required partitions
                     let n = 0;
@@ -461,64 +568,6 @@ export default function Visualizations() {
 
                     //Add to array for branch creation
                     bracketNodesL1L2.push(successor + successorCount + "_BRACKET");
-
-                    // //Arrange y coordinate accordingly
-                    // triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
-
-                    // //Create a node from the first word
-                    // let newFirstWordPoint = {data : {id : successor + successorCount + "_WORD_" + 0, label : words[0]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
-
-                    // //Update y-coordinate
-                    // triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
-
-                    // //Create a node from the last two words, immediately below the first
-                    // //For a tri-gram model, add the next word. For a tetra-gram model, add the next two words.
-                    // let newEndWordsPoint;
-                    // if (modelType === "Tri-gram") {
-                    //     newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
-                    // } else {
-                    //     newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " " + words[2]}, position : {x: xCoordinateL1, y : triTetraYCoord + 15}};
-                    // }
-                    
-                    // //Add as the end point for the L0L1 branch and the start of the L1L2 branch
-                    // successorIDsL1L2.push(successor + successorCount + "_WORD_" + 1);
-
-                    // //Create bracket node
-                    // let newBracketNode = {data : {id : successor + successorCount + "_BRACKET", label : "]"}, position : {x: xCoordinateL1 + 50, y : yCoordinateL1}, style : {height : 50, width : 25, "font-size" : 90}};
-
-                    // //Add to array for branch creation
-                    // bracketNodesL1L2.push(successor + successorCount + "_BRACKET");
-
-                    // //Add both branches and the bracket node to the graph
-                    // setGraphData(existingGraph => [...existingGraph, newFirstWordPoint]);
-                    // setGraphData(existingGraph => [...existingGraph, newEndWordsPoint]);
-                    // setGraphData(existingGraph => [...existingGraph, newBracketNode]);
-
-                    // for (let i = 0; i < 2; i++) {
-
-                    //     //Arrange y coordinate accordingly
-                    //     triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
-
-                    //     //Create node
-                    //     let newTriTetraPoint = {data : {id : successor + successorCount + "_WORD_" + i, label : words[i]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
-                        
-                    //     //Add the first word as the end point for the L0L1 branch
-                    //     if (i === 0) {successorIDsL0L1.push(successor + successorCount + "_WORD_" + i);}
-                    //     //Add the final word (the n - 1th index) as the start point for the L1L2 branch
-                    //     if (i > 1) {successorIDsL1L2.push(successor + successorCount + "_WORD_" + i)}
-
-                    //     //Push to array
-                    //     points.push(newTriTetraPoint);
-                        
-
-                    // }
-
-                    // //Push all points to the graph
-                    // for (let j = 0; j < points.length; j++) {
-                    //     //Add to graph
-                    //     setGraphData(existingGraph => [...existingGraph, points[j]]);
-                    // }
-
 
                 }
 
@@ -555,19 +604,248 @@ export default function Visualizations() {
             //For handling auto-sizing of columns
             let columnSize;
 
-            if (maxFirstOrderSuccessors === 5) {columnSize = 2;}
-            else if (maxFirstOrderSuccessors === 4) {columnSize = 2;}
-            else if (maxFirstOrderSuccessors === 3) {columnSize = 3;}
-            else if (maxFirstOrderSuccessors === 2) {columnSize = 4;}
-            else {columnSize = 5;}
+            if (maxFirstOrderSuccessors === 5) {columnSize = 4;}
+            else if (maxFirstOrderSuccessors === 4) {columnSize = 6;}
+            else if (maxFirstOrderSuccessors === 3) {columnSize = 7;}
+            else if (maxFirstOrderSuccessors === 2) {columnSize = 9;}
+            else {columnSize = 11;}
 
             //Append column size
             columnSizes.push(columnSize);
+
+            //Get second successor group
+            successorsL2 = successorsL2.map(function (pair) {return pair[0];});
+
+            //If this is a tri-or-tetra-gram model, add the last one and two words respectively of the previous successor
+            //The idea is that when the user reads the L2 section, they'll see a sequence of words and then some individual words inside a box
+            //By combining the given sequence and whatever word they pick from inside the box, they'll have generated a new key
+
+            if (successorsL2.length <= 1 && modelType !== "Bi-gram") {
+
+                //Add the final words (last word for tri-gram and last two words for tetra-gram) at the beginning of the successors list such that they will be rendered
+                let n;
+                if (modelType === "Tri-gram") {n = 1;}
+                else {n = 2;}
+
+                //Add words
+                for (let i = 1; i <= n; i++) {successorsL2.unshift(reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - i]))}
+                
+                //Add false flag
+                moreThanOneSuccessor[i] = false;
+        
+            //However, if there is more than one successor, create and store the initial "hanging" phrase that will go on the branch
+            } else {
+                if (modelType === "Tri-gram") {
+                    //Add last word
+                    hangingInitPhrases.push(reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]));
+                } else if (modelType === "Tetra-gram") {
+                    //Add last two words
+                    hangingInitPhrases.push(reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 2] + " " + secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]));
+                }
+                moreThanOneSuccessor[i] = true;
+            }
+
+            //L2 Successor Length (store in array as well)
+            let l2SuccessorLength = successorsL2.length;
+            successorL2Lengths.push(l2SuccessorLength);
+
+        }
+
+        if (renderSecondOrderSuccessors) {
+            //Render optimal configuration of the graph - finding the ideal column size for each one.
+            //First, set a maximum row size and an array to track how many columns are present per L2 successor set
+            let maxRows = 14;
+            let totalL2Columns = {};
+            //For keeping track of what the current number of rows are
+            let currRows = 0;
+
+
+            //Populate the array with the maximum lengths for each set
+            let numL1Successors = columnSizes.length;
+            for (let i = 0; i < numL1Successors; i++) {
+
+                //Get the length
+
+                //console.log("INTENDED VALUE:", successorL2Lengths[i] / columnSizes[i])
+                totalL2Columns[i] = Math.floor(successorL2Lengths[i] / columnSizes[i]);
+                //If a remainder is present, add one
+                if (successorL2Lengths[i] % columnSizes[i] !== 0) {totalL2Columns[i]++;}
+                //Add the column sizes (# of words per column) iteratively to see how many row slots have been occupied
+                //If there's only one column, add the length of the successors
+                if (successorL2Lengths[i] < columnSizes[i]) {currRows += successorL2Lengths[i];}
+                else {currRows += columnSizes[i];}
+                
+            }
+
+            //console.log("TOTAL L2 COLUMNS:", totalL2Columns);
+            //While the number of specified columns hasn't increased, pick the largest L2 successor chain and reduce accordingly
+            
+            let highestIdx = 0;
+            let secondHighestIdx = 0;
+            
+            for (const [key, value] of Object.entries(columnSizes)) {
+                columnSizes[key] = 1;
+            }
+
+            let successorLengthDict = {}
+            //Dictionary of booleans with sorted status for each column
+            let isColumnSorted = {}
+            //Dictionary with an array of factors for each successorL2 length
+            let factorArrays = {};
+
+            //Update a dictionary to keep track of indexes, the total L2 Columns length array, a dictionary to keep track of each column's sorted status, and factors
+            for (let i = 0; i < successorL2Lengths.length; i++) {
+                successorLengthDict[i] = successorL2Lengths[i];
+                totalL2Columns[i] = successorL2Lengths[i];
+                isColumnSorted[i] = false;
+
+                let factors = findFactors(successorL2Lengths[i]);
+                factors.sort((a, b) => a - b);
+                factorArrays[i] = factors;
+                
+            }
+
+            currRows = successorL2Lengths.length;
+
+            let breakLoop = false;
+            while (!breakLoop && currRows <= maxRows && !Object.values(totalL2Columns).includes(0) && successorL2Lengths.some(value => value !== 1)) {
+
+                //Sort dict (get items, sort them, and move to value)
+                let dict_items = Object.keys(totalL2Columns).map(
+                    (key) => {return [key, totalL2Columns[key]]}
+                );
+
+                //Sort items
+                dict_items.sort(
+                    (first_val, second_val) => { return first_val[1] - second_val[1] }
+                )
+
+                let sortedL2Columns = (dict_items.map((e) => {return e[0]})).reverse();
+                //Store top two highest values
+                //If only one set of second-order successors is present, simply set the height to the maximum number of rows
+                if (sortedL2Columns.length < 2) {
+                    columnSizes[0] = maxRows;
+                    break;
+                }
+
+                highestIdx = Number(sortedL2Columns[0]);
+                secondHighestIdx = Number(sortedL2Columns[1]);
+
+                //Move on if the value at the highest idx has already been sorted and the values for both the highest and second highest are equal, break
+                //if (isColumnSorted[highestIdx] && totalL2Columns[highestIdx] === totalL2Columns[secondHighestIdx]) {continue;}
+                //if (isColumnSorted[highestIdx]) {break;}
+                //Get all factors above the current columnSize value
+                let factorsHighest = factorArrays[highestIdx].filter(factor => factor >= columnSizes[highestIdx])
+                let factorsSecondHighest = factorArrays[highestIdx].filter(factor => factor >= columnSizes[secondHighestIdx])
+
+                //let factorsSecondHighest = findFactors(totalL2Columns[secondHighestIdx]).sort();
+
+                let factorIdx = 1; //We don't consider 1, so we start with the second index
+
+                //Find factors of the highest value
+
+                //Rearrange until we maximize the number of rows, without going over the limit set by currRows.
+                while (currRows <= maxRows && (totalL2Columns[highestIdx] >= totalL2Columns[secondHighestIdx] )) {
+
+                    //New candidate variables
+                    let newColSize = columnSizes[highestIdx];
+                    let newTotCol = totalL2Columns[highestIdx];
+
+                    if (false && factorsHighest.length > 2) {
+
+                        //Store previous column size for row calculations
+                        let prevColSize = columnSizes[highestIdx];
+                        //Set the column size to the next largest factor
+                        newColSize = factorsHighest[factorIdx];
+                        //Number of columns are now the complement of said factor
+                        newTotCol = Math.floor(successorL2Lengths[highestIdx] / newColSize);
+                        //Add the difference between the current and previous column sizes to the row counter
+                        currRows += newColSize - prevColSize;
+
+                        //Increment the factor idx
+                        factorIdx++;
+                    
+                    //If the number is prime
+                    } else {
+
+                        //Store previous column size for row calculations
+                        let prevColSize = columnSizes[highestIdx];
+                        //Simply increase the column size rather than leveraging factors
+                        newColSize++
+                        //Number of columns are now the complement; use the ceiling (5 successors with a column size of two means three factors must be present.)
+                        newTotCol = Math.ceil(successorL2Lengths[highestIdx] / newColSize);
+                        //Add the difference between the current and previous column sizes to the row counter
+                        currRows += newColSize - prevColSize;
+                        
+                    }
+
+                    //Check to see if the row count has been exceeded. If not, assign. If so, stick to the older version and terminate the inner loop
+                    if  (currRows >= maxRows) {
+                        breakLoop = true;
+                        break;
+                    }
+                    else {
+                        columnSizes[highestIdx] = newColSize;
+                        totalL2Columns[highestIdx] = newTotCol;
+                    }
+
+                }
+                
+                //The column at the highest index has now been sorted. Update its status.
+                isColumnSorted[highestIdx] = true;
+
+                if (currRows < maxRows && (factorsHighest.length > 2 || factorsSecondHighest.length > 2)) {
+
+                }
+
+
+            } 
+
+            //Sort dict (get items, sort them, and move to value)
+            let dict_items = Object.keys(totalL2Columns).map(
+                (key) => {return [key, totalL2Columns[key]]}
+            );
+
+            //Sort items
+            dict_items.sort(
+                (first_val, second_val) => { return first_val[1] - second_val[1] }
+            )
+
+            let sortedL2Columns = (dict_items.map((e) => {return e[0]})).reverse();
+    
+            highestIdx = sortedL2Columns[0]
+            secondHighestIdx = sortedL2Columns[1];
+        
+        }
+
+        //Now, render all second-order successors.
+        for (let i = 0; i < maxFirstOrderSuccessors; i++) {
+
+            let unformattedSuccessor = successorsL1[i];
+            let successor = reFormatText(unformattedSuccessor);
 
             //Row and column counters
             let counterL2 = 0;
             let columnCounterL2 = 0;
 
+            //Second order successors
+
+            //Now, generate the successors of each subtree (if required)
+            if (!renderSecondOrderSuccessors) {continue;}
+
+            //If dealing with a tri-or-tetra-gram model, leverage the startKey to generate the appropriate L1 key to access the L2 successors
+            let secondOrderKey = unformattedSuccessor;
+            //Tri-gram key: last word + current word
+            if (modelType === "Tri-gram") {secondOrderKey = startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor}
+            //Tetra-gram key: last two words + current word
+            else if (modelType === "Tetra-gram") {secondOrderKey = startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor}
+
+            //Second order successors
+            let successorsL2 = Array.from(nGramDict.get(secondOrderKey));
+
+            //Get second successor group
+            successorsL2 = successorsL2.map(function (pair) {return pair[0];});
+            let originalSuccessorL2length = successorsL2.length;
             //If this is a tri-or-tetra-gram model, add the last one and two words respectively of the previous successor
             //The idea is that when the user reads the L2 section, they'll see a sequence of words and then some individual words inside a box
             //By combining the given sequence and whatever word they pick from inside the box, they'll have generated a new key
@@ -606,40 +884,8 @@ export default function Visualizations() {
             let xCoordinateL2 = maxDeviationXL2 * 3;
             let yCoordinateL2; //= yCoordinateL1 - (50 * (columnSize - 1));
 
-            if (l2SuccessorLength < columnSize) {yCoordinateL2 = yCoordinateL1 - (maxDeviationYL2/2 * (l2SuccessorLength + 1));} 
-            else {yCoordinateL2 = yCoordinateL1 - (maxDeviationYL2/2 * (columnSize + 1));}
-
-            // if (modelType !== "Bi-gram") {
-
-            //     //Create initial word sequence; add a plus sign at the end to indicate that it will be joined by a word from the box of provided selections
-            //     let initWordSequence;
-            //     if (modelType === "Tri-gram") {
-            //         initWordSequence = reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]);
-            //     } else if (modelType === "Tetra-gram") {
-            //         initWordSequence = reFormatText(secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 2] + " " + secondOrderKey.split(" ")[secondOrderKey.split(" ").length - 1]);
-            //     }
-
-            //     //Check to see if one or multiple L2 successors are present. If just one, lump together with the initWordSequence. Otherwise, draw a box and join
-            //     let sequenceNodeBeforeBox;
-
-            //     //Create new node with the given sequence and add to the graph
-            //     //Y-position should be identical to that of the first-order successor
-
-            //     if (l2SuccessorLength < 2) {
-            //         sequenceNodeBeforeBox = {data : {id : initWordSequence + " " + reFormatText(successorsL2[0]), label : initWordSequence + " " + reFormatText(successorsL2[0])}, position : {x: xCoordinateL2, y : yCoordinateL1}};
-            //         //Set flag
-            //         moreThanOneSuccessor = true;
-            //     } else {
-            //         sequenceNodeBeforeBox = {data : {id : initWordSequence, label : initWordSequence}, position : {x: xCoordinateL2, y : yCoordinateL1}};
-            //     }
-
-            //     //Increment the x-coordinate positioning as well; this is leveraged by both the successor positioning logic and the box drawing mechanism
-            //     xCoordinateL2 += maxDeviationXL2;
-
-            //     //Add to graph data
-            //     setGraphData(existingGraph => [...existingGraph, sequenceNodeBeforeBox]);
-
-            // }
+            if (l2SuccessorLength < columnSizes[i]) {yCoordinateL2 = allFirstOrderPositions[i] - (maxDeviationYL2/2 * (l2SuccessorLength + 1));} 
+            else {yCoordinateL2 = allFirstOrderPositions[i] - (maxDeviationYL2/2 * (columnSizes[i] + 1));}
 
             //Iterate through all L2 successors
             for (let j = 0; j < successorsL2.length; j++) {
@@ -647,9 +893,18 @@ export default function Visualizations() {
                 //Get successor word
                 let successorL2 = reFormatText(successorsL2[j]);
 
-                if (counterL2 % columnSize === 0 && counterL2 !== 0) {
+                if (counterL2 % columnSizes[i] === 0 && counterL2 !== 0) {
                     xCoordinateL2 += maxDeviationXL2;
-                    yCoordinateL2 = yCoordinateL1 - ((columnSize + 1) * (maxDeviationYL2 / 2));
+
+                    //Figure out how many rows are going to be in this column
+                    let rowsInColumn = columnSizes[i];
+                    //If this is the last column, then change column size to the number of remaining elements
+
+                    if (Math.floor(successorsL2.length / columnSizes[i]) === columnCounterL2 + 1) {
+                        rowsInColumn = Math.floor(successorsL2.length % columnSizes[i]);
+                    }
+
+                    yCoordinateL2 = allFirstOrderPositions[i] - ((rowsInColumn + 1) * (maxDeviationYL2 / 2));
                     counterL2 = 0;
 
                     //Increment second order column counter
@@ -680,8 +935,35 @@ export default function Visualizations() {
                 //This line is commented out -> jitter has been temporarily disabled. If you would like to re-enable it, simply comment the third line and uncomment the next two.
                 // if (successorsL2.length > 1) {newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x : xCoordinateL2 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL2 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};} 
                 // else {newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};}
-                newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};
-
+                
+                //Set the new node, including the probability of that node being selected as a successor to the previous layer parent.
+                //First, remove all numbers from the right side of the string to extract the L01L1 word
+                //Probability calculations will change based on the model
+                let prob;
+                
+                if (modelType === "Bi-gram") {
+                    prob = nGramDict.get(unformattedSuccessor).get(unFormatText(successorL2));
+                } else if (modelType === "Tri-gram") {
+                    prob = nGramDict.get(startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor).get(successorL2);
+                } else {
+                    prob = nGramDict.get(startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor).get(successorL2);
+                }
+                
+                if (modelType === "Bi-gram") {
+                    if (originalSuccessorL2length === 1) {
+                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};
+                    } else {
+                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2 + " (" + prob + ")"}, position : {x: xCoordinateL2, y : yCoordinateL2}};
+                    }
+                } else {
+                    //If the probability is undefined (meaning it is not the final word in the sequence; not a successor word), simply generate the node as is. Otherwise, display the probability
+                    if (prob === undefined || (modelType === "Tri-gram" && originalSuccessorL2length === 1) || (modelType === "Tetra-gram" && originalSuccessorL2length === 1)) {
+                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};
+                    } else {
+                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2 + " (" + prob + ")"}, position : {x: xCoordinateL2, y : yCoordinateL2}};
+                    }
+                }
+                
                 setGraphData(existingGraph => [...existingGraph, newGraphPointL2]);
                 allAddedNodes.push(successorL2);
                 counterL2++;
@@ -694,8 +976,8 @@ export default function Visualizations() {
                 
 
             }
-
         }
+        
 
         //If not rendering second order successors, generate a box around the existing graph elements, not including the start word
         if (!renderSecondOrderSuccessors) {
@@ -730,8 +1012,14 @@ export default function Visualizations() {
             //Add box to graph
             setGraphData(existingGraph => [...existingGraph, boundingBox])
 
-            //Add branches
-            let newBranchL1 = {data : {source : reFormatText(startKey), target : "BOX_L1", label : reFormatText(startKey) + "BOX_L1"}};
+            //Add branches - include "BRACKET" tag if a tri-or-tetra-gram model
+            let newBranchL1;
+            if (modelType === "Bi-gram") {
+                newBranchL1 = {data : {source : reFormatText(startKey), target : "BOX_L1", label : ""}};
+            } else {
+                newBranchL1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : "BOX_L1", label : ""}};
+            }
+            
             setGraphData(existingGraph => [...existingGraph, newBranchL1]);
         
         //If rendering second-order successors, generate an individual box around each level of second-order successors
@@ -806,6 +1094,7 @@ export default function Visualizations() {
                 const boxDist = Math.abs(rightPos - outerLeftPos);
                 //Find the midpoint
                 const midpoint = (rightPos + outerLeftPos) / 2;
+                let height;
                 
                 //Don't create a box if only one L2 successor is present
                 if (moreThanOneSuccessor[i]) {
@@ -813,10 +1102,15 @@ export default function Visualizations() {
                     //But, if multiple L2 successors are present, render boxes
                     //Later, we'll render the hanging initial phrases on top of the arrows (branches) themselves
 
+                    //Figure out how many words are present in the highest column
+                    let numWordsHighest;
+                    if (successorL2Lengths[i] > columnSizes[i]) {numWordsHighest = columnSizes[i]}
+                    else {numWordsHighest = successorL2Lengths[i]}
+
                     //If this box is a single successor (i.e. a single word), shrink the height dramatically to prevent any overlap between the white and black borders
-                    let height;
+
                     if (box_color === "white" && modelType === "Bi-gram") {height = 77;}
-                    else {height = (columnSizes[i] + 1) * 40};
+                    else {height = numWordsHighest * 25};
 
                     //Set the actual L2 bounding box
                     const boundingBox = {
@@ -847,41 +1141,80 @@ export default function Visualizations() {
                 //From the source word to the first level
                 //For tri-and-tetra-gram models, the target should be the successorIDsL1L2 array element for the given set
                 let newBranchL0L1;
+
+                //Get the associated probability between the start and L0L1 word
+
+                let L0L1word = unFormatText(successorIDsL0L1[i].replace(/\d+$/, ''));
                 if (modelType === "Bi-gram") {
-                    newBranchL0L1 = {data : {source : reFormatText(startKey), target : successorIDsL0L1[i], label : reFormatText(startKey) + successorIDsL0L1[i]}};
+
+                    //First, remove all numbers from the right side of the string to extract the L01L1 word
+                    L0L1word = unFormatText(successorIDsL0L1[i].replace(/\d+$/, ''));
+                    //Get probability
+                    let prob = nGramDict.get(startKey).get(L0L1word);
+                    newBranchL0L1 = {data : {source : reFormatText(startKey), target : successorIDsL0L1[i], label : prob}};
+                
+                } else if (modelType === "Tri-gram") {
+
+                    let prob = nGramDict.get(startKey).get(successorsL1[i]);
+                    newBranchL0L1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : successorIDsL0L1[i], label : prob}};
+                
                 } else {
-                    newBranchL0L1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : successorIDsL0L1[i], label : reFormatText(startKey) + successorIDsL1L2[i]}};
+
+                    let prob = nGramDict.get(startKey).get(successorsL1[i]);
+                    newBranchL0L1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : successorIDsL0L1[i], label : prob}};
+                
                 }
+                
                 setGraphData(existingGraph => [...existingGraph, newBranchL0L1]);
 
                 //From the first level to the second. For bi-gram models, this is the same word.
                 //For tri-and-tetra gram models, use the successorIDsL1L2 array (as we want the source of the branch to be the final word for a given key)
                 let newBranchL1L2;
+
                 if (modelType === "Bi-gram") {
-                    newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : successorIDsL0L1[i] + "_BOX_L2_" + i}};
+                    if (successorL2Lengths[i] > 1) {
+                        newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : ""}};
+                    } else {
+                        newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : "1"}};
+                    }
+                    
+                
                 } else {
+
                     //If there is only one L2 successor, point directly to the final word.
                     if (!moreThanOneSuccessor[i]) {
-                        newBranchL1L2 = {data : {source : bracketNodesL1L2[i], target : successorIDsL1L2[i], label : successorIDsL1L2[i] + "_FINAL_BRANCH" + i}};
+                        newBranchL1L2 = {data : {source : bracketNodesL1L2[i], target : successorIDsL1L2[i], label : "1"}};
                     //Otherwise, point to the box.
                     } else {
-                        newBranchL1L2 = {data : {source : bracketNodesL1L2[i], target : "BOX_L2_" + i, label : successorIDsL1L2[i] + "_BOX_L2_" + i}};
+                        newBranchL1L2 = {data : {source : bracketNodesL1L2[i], target : "BOX_L2_" + i, label :  ""}};
                     }
                 }
                 
                 setGraphData(existingGraph => [...existingGraph, newBranchL1L2]);
 
                 //If more than one successor is present, as mentioned earlier, we must add the hanging initial phrases on top of the given branches
+                //Also add a bracket from the top of said hanging phrase to the bottom of the bounding box
                 if (moreThanOneSuccessor[i]) {
 
                     //Use width and y position of the box (remember that if we have more than one successor, a box must be present)
-                    //Create node from the hangingInitPhrases array
-                    let newHangingNode = {data : {id : hangingInitPhrases[i] + "_HANGING_PHRASE_" + i, label : hangingInitPhrases[i]}, position : {x: (midpoint - (0.5 * boxDist)) - 40, y : allFirstOrderPositions[i] - 25}};
-                
+                    //Create node from the hangingInitPhrases array as well as a new bracket
+                    //let newHangingNode = {data : {id : hangingInitPhrases[i] + "_HANGING_PHRASE_" + i, label : hangingInitPhrases[i]}, position : {x: (midpoint - (0.5 * boxDist)) - 40, y : allFirstOrderPositions[i] - 25}};
+                    let newHangingNode = {data : {id : hangingInitPhrases[i] + "_HANGING_PHRASE_" + i, label : hangingInitPhrases[i]}, position : {x: midpoint, y : allFirstOrderPositions[i] - (height/2) - 25}};
                     //Add to graph
                     setGraphData(existingGraph => [...existingGraph, newHangingNode]);
-                }
 
+                    if (modelType !== "Bi-gram") {
+                        let newBracketNode = {data : {id : hangingInitPhrases[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (boxDist/2) + 19, y : allFirstOrderPositions[i] - (height/2)}, style : {height : 50, width : 25, "font-size" : 90}};
+                        setGraphData(existingGraph => [...existingGraph, newBracketNode]);
+                    }
+
+                } else {
+                    if (modelType !== "Bi-gram") {
+                        let newBracketNode = {data : {id : hangingInitPhrases[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (boxDist/2), y : allFirstOrderPositions[i] - (25/2)}, style : {height : 50, width : 25, "font-size" : 90}};
+                        setGraphData(existingGraph => [...existingGraph, newBracketNode]);
+                    }
+                }
+                
             }
         }
     }
@@ -942,12 +1275,24 @@ export default function Visualizations() {
     }, [textGenMode])
 
     useEffect(() => {
-        if (textGenMode === "automatic") {renderGraph();}
+        if (textGenMode === "automatic" && !pane2KeyClicked) {
+            renderGraph();
+        }
 
         //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isReset, generatedText])
+
+    useEffect(() => {
+        if (textGenMode === "automatic" && pane2KeyClicked) {
+            setPane2KeyClicked(false);
+            renderGraph();}
+
+        //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
+        //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
+        //eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isReset, pane2KeyClicked])
 
 
     //Check for when the layout is no longer undefined (that is, it has been rendered) and update accordingly

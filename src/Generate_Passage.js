@@ -13,7 +13,9 @@ export default function GeneratePassage(){
            setManualGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, 
            key, setKey, setWordCount, textGenMode, setTextGenMode, 
            enableNextWord, setEnableNextWord, setKeysAdded, 
-           generate_text, currentWordCounter, setCurrentWordCounter} = useDictContext();
+           generate_text, currentWordCounter, setCurrentWordCounter, 
+           globalStartKey, setGlobalStartKey, pane2KeyClicked, setPane2KeyClicked,
+           textVisualized, setTextVisualized, manualStartKey, setManualStartKey} = useDictContext();
 
     //Enable next word selection panel
     // const [enableNextWord, setEnableNextWord] = useState(false);
@@ -74,7 +76,7 @@ export default function GeneratePassage(){
     //Click handler
     const gen_button_clicked = () => {
         //Generate text
-        setGeneratedText(generate_text(nGramDict, modelType, wordCount))
+        setGeneratedText(generate_text(null, nGramDict, modelType, wordCount))
         //Set automatic graph generation to permitted
         setAutoGraphAllowed(true);
     }

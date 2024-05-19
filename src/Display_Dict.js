@@ -10,8 +10,10 @@ import { useDictContext } from "./Context";
 
 function DisplayDict() {
     //Get variables from context
-    const { nGramDict, modelType, setModelType, branchingFactor, setBranchingFactor, 
-            lenDict, setLenDict, reFormatText, branching_factor} = useDictContext();
+    const { nGramDict, modelType, setModelType, branchingFactor, 
+            setBranchingFactor, pane2KeyClicked, setPane2KeyClicked, globalStartKey, setGlobalStartKey, 
+            manualStartKey, setManualStartKey, unFormatText, currentWord, setCurrentWord, textGenMode,
+            lenDict, setLenDict, reFormatText, branching_factor, setGeneratedText, generate_text, wordCount} = useDictContext();
 
     //INFINITE SCROLLING VARIABLES AND FUNCTIONS
 
@@ -68,6 +70,22 @@ function DisplayDict() {
         //If so, a change should trigger the generation of a novel dictionary and text generation.
         //Otherwise, simply update the state.
         setModelType(selection.target.value)
+    }
+
+    //When a dictionary key is clicked, update the third and fourth panes
+    const dictKeyClicked = (event) => {
+
+        if (!pane2KeyClicked && textGenMode !== "manual") {
+            //Set key
+            setGlobalStartKey(unFormatText(event.target.innerText).replace(/:+$/, ""));
+            //Set clicked status to true
+            setPane2KeyClicked(true);
+            setManualStartKey(true);
+
+            setGeneratedText(generate_text(unFormatText(event.target.innerText).replace(/:+$/, ""), nGramDict, modelType, wordCount))
+
+        }
+        
     }
 
     //Calculate branching factor, length, and word frequencies of the dictionary (if the model is a bi-gram) each time the dict changes
@@ -142,7 +160,7 @@ function DisplayDict() {
                 
                     {Array.from(nGramDict).map(([key, values], index) => (
                         <div key = {index} class = "">
-                            <strong class = "text-green-900">{reFormatText(key)}: </strong>
+                            <strong class = "text-green-900 hover:bg-green-200 rounded-md cursor-pointer" onClick = {dictKeyClicked}>{reFormatText(key)}: </strong>
                             {Array.from(values).map(([item, count], index, successorArr) => (
                                 <React.Fragment key={`${values}-${item}`}>
                                     <li className="inline list-none">
