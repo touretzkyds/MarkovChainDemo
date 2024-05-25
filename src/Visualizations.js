@@ -361,12 +361,14 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
         //Iterate through each successor word
         let successorsL1 = Array.from(nGramDict.get(startKey));
         successorsL1 = successorsL1.map(function (pair) {return pair[0];})
+        
+        //2D array of all L1L2 successors
+        let successorsL1L2 = [];
 
         //Array of all L0L1 successor IDs (needed for the branches going from the root word to the first level)
         let successorIDsL0L1 = [];
         //Array of all L1L2 successor IDs (for the branches going from L1 to L2)
         let successorIDsL1L2 = [];
-
 
         //Bracket nodes
         let bracketNodesL0L1 = [];
@@ -615,6 +617,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
             //Get second successor group
             successorsL2 = successorsL2.map(function (pair) {return pair[0];});
+            //Save
 
             //If this is a tri-or-tetra-gram model, add the last one and two words respectively of the previous successor
             //The idea is that when the user reads the L2 section, they'll see a sequence of words and then some individual words inside a box
@@ -632,6 +635,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 
                 //Add false flag
                 moreThanOneSuccessor[i] = false;
+
+                //Add a blank string to the hangingInitPhrases array
+                hangingInitPhrases.push("");
         
             //However, if there is more than one successor, create and store the initial "hanging" phrase that will go on the branch
             } else {
@@ -879,6 +885,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             //L2 Successor Length (store in array as well)
             let l2SuccessorLength = successorsL2.length;
             successorL2Lengths.push(l2SuccessorLength);
+        
+            //Store successors in 2D array for box ID creation
+            successorsL1L2.push([]);
 
             //Coordinates
             let xCoordinateL2 = maxDeviationXL2 * 3;
@@ -892,6 +901,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                 //Get successor word
                 let successorL2 = reFormatText(successorsL2[j]);
+
+                //Push to array
+                successorsL1L2[i].push(successorL2);
 
                 if (counterL2 % columnSizes[i] === 0 && counterL2 !== 0) {
                     xCoordinateL2 += maxDeviationXL2;
@@ -1194,8 +1206,12 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                 //If more than one successor is present, as mentioned earlier, we must add the hanging initial phrases on top of the given branches
                 //Also add a bracket from the top of said hanging phrase to the bottom of the bounding box
+                console.log("MORE THAN ONE SUCCESSOR:", i, moreThanOneSuccessor[i]);
+                console.log("L1 SUCCESSORS:", successorsL1[i]);
+                console.log("L2 SUCCESSORS:", successorsL1L2[i]);
                 if (moreThanOneSuccessor[i]) {
 
+                    console.log("HANGING PHRASE:", hangingInitPhrases[i]);
                     //Use width and y position of the box (remember that if we have more than one successor, a box must be present)
                     //Create node from the hangingInitPhrases array as well as a new bracket
                     //let newHangingNode = {data : {id : hangingInitPhrases[i] + "_HANGING_PHRASE_" + i, label : hangingInitPhrases[i]}, position : {x: (midpoint - (0.5 * boxDist)) - 40, y : allFirstOrderPositions[i] - 25}};
@@ -1204,13 +1220,44 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     setGraphData(existingGraph => [...existingGraph, newHangingNode]);
 
                     if (modelType !== "Bi-gram") {
-                        let newBracketNode = {data : {id : hangingInitPhrases[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (boxDist/2) + 19, y : allFirstOrderPositions[i] - (height/2)}, style : {height : 50, width : 25, "font-size" : 90}};
+
+                        //Determine bracket x-position by figuring out the longest word in the previous chain
+                        let word1 = successorsL1[i];
+                        let words2 = successorsL1L2[i];
+
+                        
+                        
+
+                        // //If words2 is longer than
+
+                        // let wordArr = words2.push(word1);
+                        // console.log("WORDS 2", words2);
+                        
+                        // //Find the longest char between the two. Multiply by 8 to obtain pixel count
+                        // let longestLength = Math.max(...(wordArr.map(str => str.length)));
+
+                        console.log("NEW BRACKET NODE IS BEING ADDED.")
+                        let newBracketNode = {data : {id : successorIDsL0L1[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (boxDist/2) + 25 , y : allFirstOrderPositions[i] - (height/2)}, style : {height : 50, width : 25, "font-size" : 90}};
                         setGraphData(existingGraph => [...existingGraph, newBracketNode]);
                     }
 
                 } else {
                     if (modelType !== "Bi-gram") {
-                        let newBracketNode = {data : {id : hangingInitPhrases[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (boxDist/2), y : allFirstOrderPositions[i] - (25/2)}, style : {height : 50, width : 25, "font-size" : 90}};
+
+                        //Determine bracket x-position by figuring out the longest word in the previous chain
+                        let word1 = successorsL1[i];
+                        let words2 = successorsL1L2[i];
+                        words2.push(word1);
+
+                        //Find length of longest word
+                        let longestLength = 0;
+                        for (let k = 0; k < words2.length; k++) {if (words2[k].length > longestLength) {longestLength = words2[k].length}}
+                        console.log("LONGEST LENGTH:", longestLength);
+
+                        //Right bound of the bracket will be midpoint + 1/2 of the longest length times the number of pixels occupied by the characters.
+                        //The optimal constant can be found through trial and error; but generally, will be between 8 - 20 (divided by two of course)
+
+                        let newBracketNode = {data : {id : successorIDsL1L2[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (longestLength * 10), y : allFirstOrderPositions[i]}, style : {height : 50, width : 25, "font-size" : 90}};
                         setGraphData(existingGraph => [...existingGraph, newBracketNode]);
                     }
                 }
