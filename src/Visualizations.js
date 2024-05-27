@@ -425,6 +425,41 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
         //Array 
 
+        // //If not rendering second-order successors, set a max row height and optimize width
+        // if (!renderSecondOrderSuccessors) {
+
+        //     let maxFirstOrderRows = 14;
+        //     let counter = 0;
+        //     let columnCounter = 0;
+
+        //     for (let i = 0; i < successorsL1.length; i++) {
+                
+        //         //Get value
+        //         let unformattedSuccessor = successorsL1[i];
+        //         let successor = reFormatText(unformattedSuccessor);
+
+        //         if (counter % maxFirstOrderRows === 0 && counter !== 0) {
+        //             xCoordinateL1 += maxDeviationXL2;
+        //             let rowsInColumn = maxFirstOrderRows;
+
+        //             if (Math.floor(successorsL1.length / maxFirstOrderRows) === columnCounter + 1) {
+        //                 rowsInColumn = Math.floor(successorsL1.length % maxFirstOrderRows);
+        //             }
+
+        //             yCoordinateL1 = 0 - ((rowsInColumn + 1) * (maxDeviationYL2 / 2));
+        //             counter = 0;
+        //             columnCounter++;
+        //         }
+
+        //     }
+    
+        // }
+
+        let maxFirstOrderRows = 14;
+        let limit = 0;
+        if (renderSecondOrderSuccessors ||  modelType !== "Bi-gram") {limit = 5;}
+        else {limit = maxFirstOrderRows;}
+
         for (let i = 0; i < maxFirstOrderSuccessors; i++) {
 
             //Get value
@@ -435,9 +470,21 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             //Do the same for the nested loop
 
             //Node
-            if (counterL1 % 5 === 0) {
-                xCoordinateL1 += maxDeviationXL1;
-                yCoordinateL1 = maxDeviationYL1;
+            if (counterL1 % limit === 0) {
+                if (renderSecondOrderSuccessors || modelType !== "Bi-gram") {
+                    xCoordinateL1 += maxDeviationXL1;
+                    yCoordinateL1 = maxDeviationYL1;
+                } else {
+                    xCoordinateL1 += maxDeviationXL1;
+                    let rowsInColumn = maxFirstOrderRows;
+                    if (successorsL1.length < maxFirstOrderRows) {rowsInColumn = successorsL1.length};
+
+                    // if (Math.floor(successorsL1.length / maxFirstOrderRows) === columnCounterL1 + 1) {
+                    //     rowsInColumn = Math.floor(successorsL1.length % maxFirstOrderRows);
+                    // }
+
+                    yCoordinateL1 = 0 - ((rowsInColumn + 1) * (maxDeviationYL2 / 2));
+                }
                 counterL1 = 0;
 
                 //Increment the column counter
@@ -449,11 +496,22 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             //If in a column where filling all five nodes is possible, do so.
             //Otherwise, if we are on the final column, leverage the remainder
             let maxColumnNodes = 0;
-            if (columnCounterL1 < (maxFirstOrderSuccessors / 5)) {maxColumnNodes = 5;}
-            else if (maxFirstOrderSuccessors % 5 === 0) {maxColumnNodes = 5;}
-            else {maxColumnNodes = maxFirstOrderSuccessors % 5;}
+            if (renderSecondOrderSuccessors || modelType !== "Bi-gram") {
+                if (columnCounterL1 < (maxFirstOrderSuccessors / 5)) {maxColumnNodes = 5;}
+                else if (maxFirstOrderSuccessors % 5 === 0) {maxColumnNodes = 5;}
+                else {maxColumnNodes = maxFirstOrderSuccessors % 5;}
+            } else {
+                if (columnCounterL1 < (maxFirstOrderSuccessors / 5)) {maxColumnNodes = maxFirstOrderRows;}
+                else if (maxFirstOrderSuccessors % 5 === 0) {maxColumnNodes = maxFirstOrderRows;}
+                else {maxColumnNodes = maxFirstOrderSuccessors % maxFirstOrderRows;}
+            }
 
-            yCoordinateL1 += (Math.abs(maxDeviationYL1) * 2 / (maxColumnNodes + 1));
+            if (renderSecondOrderSuccessors || modelType !== "Bi-gram") {
+                yCoordinateL1 += (Math.abs(maxDeviationYL1) * 2 / (maxColumnNodes + 1));
+            } else {
+                yCoordinateL1 += (Math.abs(-170) * 2 / (maxColumnNodes + 1));
+            }
+            
 
             //Check how many times the successor as already been added
             let successorCount = allAddedNodes.filter(node => node === successor).length.toString();
@@ -474,6 +532,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     let prob = nGramDict.get(startKey).get(unformattedSuccessor);
                     let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel + " (" + prob + ")"}, position : {x: xCoordinateL1, y : yCoordinateL1}};
                     //let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x: xCoordinateL1 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL1 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};
+                    
+                    //
+                    
                     setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
 
                 } else {
@@ -658,9 +719,15 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
         }
 
         if (renderSecondOrderSuccessors) {
+
             //Render optimal configuration of the graph - finding the ideal column size for each one.
             //First, set a maximum row size and an array to track how many columns are present per L2 successor set
             let maxRows = 14;
+
+            //Alter the maximum number of rows based on the # of L1 successors
+            //The deviation from 14 rows for a given number of L1 successors, x, is f(x) = -2(x-5)
+            if (maxFirstOrderSuccessors !== 1) {maxRows = 12 + (-2 * (maxFirstOrderSuccessors - 5));}
+
             let totalL2Columns = {};
             //For keeping track of what the current number of rows are
             let currRows = 0;
@@ -717,25 +784,44 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             while (!breakLoop && currRows <= maxRows && !Object.values(totalL2Columns).includes(0) && successorL2Lengths.some(value => value !== 1)) {
 
                 //Sort dict (get items, sort them, and move to value)
-                let dict_items = Object.keys(totalL2Columns).map(
-                    (key) => {return [key, totalL2Columns[key]]}
-                );
+                let dict_items = Object.keys(totalL2Columns).map((key) => {return [key, totalL2Columns[key]]});
 
                 //Sort items
-                dict_items.sort(
-                    (first_val, second_val) => { return first_val[1] - second_val[1] }
-                )
-
+                dict_items.sort((first_val, second_val) => { return first_val[1] - second_val[1] })
                 let sortedL2Columns = (dict_items.map((e) => {return e[0]})).reverse();
+                
                 //Store top two highest values
-                //If only one set of second-order successors is present, simply set the height to the maximum number of rows
-                if (sortedL2Columns.length < 2) {
-                    columnSizes[0] = maxRows;
-                    break;
-                }
-
                 highestIdx = Number(sortedL2Columns[0]);
                 secondHighestIdx = Number(sortedL2Columns[1]);
+
+                //console.log("SUCCESSOR L2 AT HIGHEST IDX:", totalL2Columns[highestIdx])
+
+                //If only one set of second-order successors is present, set the height to the maximum number of rows
+                //But, if there is not more than one successor and the remainder is less than half of the given row size, increase the row size and repeat
+                
+                if (sortedL2Columns.length < 2) {
+
+                    //Calculate column remainder
+                    let remainder = 0;
+                    
+                    if (successorL2Lengths[highestIdx] > maxRows) {remainder = successorL2Lengths[highestIdx] % maxRows}
+                    
+                    if (columnSizes[0] < maxRows) {
+                        columnSizes[0] = maxRows;
+
+                        //If there is no remainder, simply break
+                        if (remainder === 0) {break;}
+                    
+                    //We stop increasing the number of rows when the remainder grows sufficiently large or stops existing
+                    } else if (remainder < (maxRows / 2)) {
+                        maxRows++;
+                        columnSizes[0] = maxRows;
+
+                        if (remainder === 0) {break;}
+
+                    } else {break;}
+
+                }
 
                 //Move on if the value at the highest idx has already been sorted and the values for both the highest and second highest are equal, break
                 //if (isColumnSorted[highestIdx] && totalL2Columns[highestIdx] === totalL2Columns[secondHighestIdx]) {continue;}
@@ -776,12 +862,36 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                         //Store previous column size for row calculations
                         let prevColSize = columnSizes[highestIdx];
+
                         //Simply increase the column size rather than leveraging factors
                         newColSize++
+
                         //Number of columns are now the complement; use the ceiling (5 successors with a column size of two means three factors must be present.)
                         newTotCol = Math.ceil(successorL2Lengths[highestIdx] / newColSize);
+
                         //Add the difference between the current and previous column sizes to the row counter
                         currRows += newColSize - prevColSize;
+
+                        //Check to see if, after the above changes, it is possible to further reduce the number of columns
+                        //If the number of columns is still the same, get the remainder and check if it can be fit within the allotted number of rows
+                        if (newTotCol >= totalL2Columns[highestIdx]) {
+                            
+                            //Get remainder
+                            let remainder = 0;
+                            if (successorL2Lengths[highestIdx] > (newColSize - 1)) {remainder = successorL2Lengths[highestIdx] % (newColSize - 1);}
+
+                            //Get number of columns excluding the remainder
+                            let columnsWithoutRemainder = newTotCol;
+                            if (remainder > 0) {columnsWithoutRemainder--;}
+
+                            //Calculate the number of extra rows required
+                            let nExtraRows = Math.ceil(remainder/columnsWithoutRemainder);
+
+                            //If the required number of extra rows goes over the amount of rows available, break
+                            if (currRows + nExtraRows > maxRows) {
+                                breakLoop = true;
+                                break;}
+                        }
                         
                     }
 
@@ -824,7 +934,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
         
         }
 
-        //Now, render all second-order successors.
+        //Now, that all of the positions have been determined render all second-order successors.
         for (let i = 0; i < maxFirstOrderSuccessors; i++) {
 
             let unformattedSuccessor = successorsL1[i];
@@ -1002,6 +1112,18 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             const width = rightPos - leftPos
             const midpoint = (rightPos + leftPos) / 2;
 
+            let height = 0;
+            if (modelType === "Bi-gram") {
+                if (successorsL1.length < maxFirstOrderRows) {height = successorsL1.length * 30}
+                else {height = maxFirstOrderRows * 30;}
+            } else {
+                console.log("MAX DEVIATION XL1:", maxDeviationYL1)
+                if (successorsL1.length < maxFirstOrderRows) {height = Math.abs(successorsL1.length * maxDeviationYL1 * 0.3)}
+                else {height = Math.abs(maxFirstOrderRows * maxDeviationYL1 * 0.3);}
+                console.log("CHOSEN HEIGHT:", height);
+            }
+
+
             //Define bounding box
             const boundingBox = {
                 "group" : "nodes",
@@ -1012,7 +1134,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 },
                 style : {
                     width : width,
-                    height : Math.abs(maxDeviationYL1 * 1.7),
+                    height : height,
                     shape : "roundrectangle",
                     'background-color' : "F5F5F5",
                     "background-opacity" : 100,
@@ -1206,12 +1328,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                 //If more than one successor is present, as mentioned earlier, we must add the hanging initial phrases on top of the given branches
                 //Also add a bracket from the top of said hanging phrase to the bottom of the bounding box
-                console.log("MORE THAN ONE SUCCESSOR:", i, moreThanOneSuccessor[i]);
-                console.log("L1 SUCCESSORS:", successorsL1[i]);
-                console.log("L2 SUCCESSORS:", successorsL1L2[i]);
+
                 if (moreThanOneSuccessor[i]) {
 
-                    console.log("HANGING PHRASE:", hangingInitPhrases[i]);
                     //Use width and y position of the box (remember that if we have more than one successor, a box must be present)
                     //Create node from the hangingInitPhrases array as well as a new bracket
                     //let newHangingNode = {data : {id : hangingInitPhrases[i] + "_HANGING_PHRASE_" + i, label : hangingInitPhrases[i]}, position : {x: (midpoint - (0.5 * boxDist)) - 40, y : allFirstOrderPositions[i] - 25}};
@@ -1220,23 +1339,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     setGraphData(existingGraph => [...existingGraph, newHangingNode]);
 
                     if (modelType !== "Bi-gram") {
-
-                        //Determine bracket x-position by figuring out the longest word in the previous chain
-                        let word1 = successorsL1[i];
-                        let words2 = successorsL1L2[i];
-
-                        
-                        
-
-                        // //If words2 is longer than
-
-                        // let wordArr = words2.push(word1);
-                        // console.log("WORDS 2", words2);
-                        
-                        // //Find the longest char between the two. Multiply by 8 to obtain pixel count
-                        // let longestLength = Math.max(...(wordArr.map(str => str.length)));
-
-                        console.log("NEW BRACKET NODE IS BEING ADDED.")
                         let newBracketNode = {data : {id : successorIDsL0L1[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (boxDist/2) + 25 , y : allFirstOrderPositions[i] - (height/2)}, style : {height : 50, width : 25, "font-size" : 90}};
                         setGraphData(existingGraph => [...existingGraph, newBracketNode]);
                     }
@@ -1252,7 +1354,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                         //Find length of longest word
                         let longestLength = 0;
                         for (let k = 0; k < words2.length; k++) {if (words2[k].length > longestLength) {longestLength = words2[k].length}}
-                        console.log("LONGEST LENGTH:", longestLength);
 
                         //Right bound of the bracket will be midpoint + 1/2 of the longest length times the number of pixels occupied by the characters.
                         //The optimal constant can be found through trial and error; but generally, will be between 8 - 20 (divided by two of course)

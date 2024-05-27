@@ -545,7 +545,6 @@ export const DictContextProvider = ({ children }) => {
         const keys = bigram_arr.map(function (pair) {return pair[0];});
         
         //Check if no starting point has been specified
-        console.log("THE VALUE OF START:", start);
         if (start === null || start === "") {
             //Choose a random key to start
             start = keys[Math.floor(Math.random() * keys.length)];
