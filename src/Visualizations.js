@@ -115,7 +115,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
     //Set graph style parameters
     const graphStyle = [
         {
+
             //Style parameters for nodes
+            zoomingEnabled: false,
             selector: "node",
             style : {
                 'background-color': 'transparent', // Node background color
@@ -264,10 +266,12 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
         //However, if the dictionary key has been clicked by the user, leverage that as the starting point instead
         if (manualStartKey) {
+
             startKey = globalStartKey;
             setManualStartKey(false);
+            setPane2KeyClicked(false);
+
         } else {
-            if (textGenMode === "manual") {
             
                 //Based on the model type, decide the final n words to check
                 let n = 1;
@@ -295,11 +299,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
     
                 //Set the manual rendered flag as true
                 setManualRendered(true);
-    
-            } else {
+
                 //Otherwise, pick a word from the dictionary at random, add to graph (if not already present) and added node list
-                startKey = dictKeys[Math.floor(Math.random() * dictKeys.length)];
-            }
+                //startKey = dictKeys[Math.floor(Math.random() * dictKeys.length)];
         }
 
 
@@ -330,15 +332,17 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 let p = 0;
                 if (modelType === "Tri-gram") {p = 2;}
                 else {p = 3;}
-
+                let style = ""
                 //Iterate through each word and create a node
                 for (let i = 0; i < words.length; i++){
 
                     //Update y-coordinate
                     startYCoord += (Math.abs(startYTolerance) * 2 / (p + 1));
                     
-                    //Create new node
-                    let newStartNode = {data : {id : words[i] + "_START", label : words[i]}, position : {x : 0, y : startYCoord}};
+                    //Create new node - make the style bold if it is the last word on the list
+                    
+                    if (i === words.length - 1) {style = "bold"}
+                    let newStartNode = {data : {id : words[i] + "_START", label : words[i]}, position : {x : 0, y : startYCoord}, style : {"font-weight" : style}};
                     //Add to the graph
                     setGraphData(existingGraph => [...existingGraph, newStartNode]);
 
@@ -566,9 +570,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     //For a tri-gram model, add the next word. For a tetra-gram model, add the next two words.
                     let newEndWordsPoint;
                     if (modelType === "Tri-gram") {
-                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
+                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1]}, position : {x: xCoordinateL1, y : triTetraYCoord}, style : {"font-weight" : "bold"}};
                     } else {
-                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " " + words[2]}, position : {x: xCoordinateL1, y : triTetraYCoord + 15}};
+                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " " + words[2]}, position : {x: xCoordinateL1, y : triTetraYCoord + 15}, style : {"font-weight" : "bold"}};
                     }
 
                     //Add as the end point for the L0L1 branch and the start of the L1L2 branch
@@ -606,14 +610,20 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     if (modelType === "Tri-gram") {n = 2;}
                     else {n = 3;}
 
+                    //Style variable - set the final word in the column to be bold
+                    let style = ""
+
                     //Iterate through all words in the key
                     for (let i = 0; i < words.length; i++) {
                         
                         //Arrange y-coordinate accordingly
                         triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
 
+                        //If last node in column, make bold
+                        if (i === words.length - 1) {style = "bold";}
+
                         //Create node
-                        let newTriTetraPoint = {data : {id : successor + successorCount + "_WORD_" + i, label : words[i]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
+                        let newTriTetraPoint = {data : {id : successor + successorCount + "_WORD_" + i, label : words[i]}, position : {x: xCoordinateL1, y : triTetraYCoord}, style : {"font-weight" : style}};
 
                         //Add to the graph
                         setGraphData(existingGraph => [...existingGraph, newTriTetraPoint])
@@ -1054,6 +1064,10 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 //if (moreThanOneSuccessor) {continue;}
 
                 let newGraphPointL2; 
+                //Set style variable to bold if on last word
+                let style;
+                if (j === successorsL2.length - 1 || originalSuccessorL2length !== 1) {style = "bold"};
+
                 //This line is commented out -> jitter has been temporarily disabled. If you would like to re-enable it, simply comment the third line and uncomment the next two.
                 // if (successorsL2.length > 1) {newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x : xCoordinateL2 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL2 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};} 
                 // else {newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};}
@@ -1080,9 +1094,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 } else {
                     //If the probability is undefined (meaning it is not the final word in the sequence; not a successor word), simply generate the node as is. Otherwise, display the probability
                     if (prob === undefined || (modelType === "Tri-gram" && originalSuccessorL2length === 1) || (modelType === "Tetra-gram" && originalSuccessorL2length === 1)) {
-                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};
+                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}, style : {"font-weight" : style}};
                     } else {
-                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2 + " (" + prob + ")"}, position : {x: xCoordinateL2, y : yCoordinateL2}};
+                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2 + " (" + prob + ")"}, position : {x: xCoordinateL2, y : yCoordinateL2}, style : {"font-weight" : style}};
                     }
                 }
                 
@@ -1114,13 +1128,15 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
             let height = 0;
             if (modelType === "Bi-gram") {
+
                 if (successorsL1.length < maxFirstOrderRows) {height = successorsL1.length * 30}
                 else {height = maxFirstOrderRows * 30;}
+
             } else {
-                console.log("MAX DEVIATION XL1:", maxDeviationYL1)
+
                 if (successorsL1.length < maxFirstOrderRows) {height = Math.abs(successorsL1.length * maxDeviationYL1 * 0.3)}
                 else {height = Math.abs(maxFirstOrderRows * maxDeviationYL1 * 0.3);}
-                console.log("CHOSEN HEIGHT:", height);
+
             }
 
 

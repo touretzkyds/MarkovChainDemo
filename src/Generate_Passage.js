@@ -187,7 +187,6 @@ export default function GeneratePassage(){
 
                 //If we have passed the maximum viable word, set values to null
                 if (currentWordCounter > display_text.trim().split(" ").length - 2) {values = undefined;}
-
                 else {
                     //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
                     const local_key = display_text.trim().split(" ").slice(currentWordCounter, currentWordCounter + 2).toString().replace(",", " ");

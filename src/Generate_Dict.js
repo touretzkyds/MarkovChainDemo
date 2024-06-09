@@ -78,6 +78,9 @@ export default function GenerateDict(props){
             //Prevent default enter key behaviour and trigger import button
             event.preventDefault();
             importWikiArticle();
+            const wikiTitle = wikiArticleTitle;
+            clearButtonClicked();
+            setWikiArticleTitle(wikiTitle);
         }
     }
 

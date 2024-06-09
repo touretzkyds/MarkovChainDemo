@@ -12,7 +12,7 @@ function DisplayDict() {
     //Get variables from context
     const { nGramDict, modelType, setModelType, branchingFactor, 
             setBranchingFactor, pane2KeyClicked, setPane2KeyClicked, globalStartKey, setGlobalStartKey, 
-            manualStartKey, setManualStartKey, unFormatText, currentWord, setCurrentWord, textGenMode,
+            manualStartKey, setManualStartKey, unFormatText, currentWord, setCurrentWord, setCurrentWordCounter, textGenMode,
             lenDict, setLenDict, reFormatText, branching_factor, setGeneratedText, generate_text, wordCount} = useDictContext();
 
     //INFINITE SCROLLING VARIABLES AND FUNCTIONS
@@ -75,14 +75,27 @@ function DisplayDict() {
     //When a dictionary key is clicked, update the third and fourth panes
     const dictKeyClicked = (event) => {
 
-        if (!pane2KeyClicked && textGenMode !== "manual") {
+        if (!pane2KeyClicked) {
+
             //Set key
             setGlobalStartKey(unFormatText(event.target.innerText).replace(/:+$/, ""));
             //Set clicked status to true
             setPane2KeyClicked(true);
             setManualStartKey(true);
 
-            setGeneratedText(generate_text(unFormatText(event.target.innerText).replace(/:+$/, ""), nGramDict, modelType, wordCount))
+            if (textGenMode === "automatic") {
+                setGeneratedText(generate_text(unFormatText(event.target.innerText).replace(/:+$/, ""), nGramDict, modelType, wordCount))
+            } else {
+
+                //Set the current word counter (tracking the position of the current word) to zero as well
+                setCurrentWordCounter(0);
+                
+                setGeneratedText("");
+                //For enabling manual text generation with this new word
+                setCurrentWord(unFormatText(event.target.innerText).replace(/:+$/, ""))
+
+            }
+
 
         }
         
