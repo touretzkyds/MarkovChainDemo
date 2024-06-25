@@ -3,7 +3,7 @@ import { useDictContext } from "./Context";
 
 export default function ManualTextOptions(props){
     //Get dictionary, model type, generated text, and word count
-    const {nGramDict, generatedText, enableButton, reFormatText, wordOptions} = useDictContext();
+    const {nGramDict, generatedText, modelType, enableButton, reFormatText, unFormatText, wordOptions} = useDictContext();
 
     //Generated text split into individual words
     let genSplitText = generatedText.split(" ");
@@ -21,7 +21,11 @@ export default function ManualTextOptions(props){
                             }</button>
                         ) : (
                             <button key = {index} onClick = {props.word_chosen} class = "flex w-full shadow-md text-center items-center justify-center rounded-3xl p-2 bg-zinc-50 font-bold text-red-500">
-                                {reFormatText(word)} ({nGramDict.get(genSplitText[genSplitText.length - 1]).get(word)})
+                                {reFormatText(word)} ({
+                                (modelType === "Bi-gram" && nGramDict.get(unFormatText(genSplitText[genSplitText.length - 1])).get(unFormatText(word))) ||
+                                (modelType === "Tri-gram" && nGramDict.get(unFormatText(genSplitText[genSplitText.length - 2] + " " + genSplitText[genSplitText.length - 1])).get(unFormatText(word))) 
+                                //(modelType === "Tetra-gram" && nGramDict.get(unFormatText(genSplitText[genSplitText.length - 3] + " " + genSplitText[genSplitText.length - 2] + " " + genSplitText[genSplitText.length - 1])).get(unFormatText(word)))
+                                })
                             </button>
                         )}
                     </div>

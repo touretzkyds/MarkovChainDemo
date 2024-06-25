@@ -13,7 +13,7 @@ export default function GeneratePassage(){
            setManualGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, 
            key, setKey, setWordCount, textGenMode, setTextGenMode, 
            enableNextWord, setEnableNextWord, setKeysAdded, 
-           generate_text, currentWordCounter, setCurrentWordCounter, 
+           generate_text, currentWordCounter, setCurrentWordCounter, unFormatText, 
            globalStartKey, setGlobalStartKey, pane2KeyClicked, setPane2KeyClicked,
            textVisualized, setTextVisualized, manualStartKey, setManualStartKey} = useDictContext();
 
@@ -108,8 +108,17 @@ export default function GeneratePassage(){
 
     //When the Random Choice button is clicked in manual generation mode.
     const random_word_choice = () => {
+
+        let genTextArr = generatedText.split(" ");
+        let word;
+        if (modelType === "Bi-gram") {word = genTextArr[genTextArr.length - 1]}
+        else if (modelType === "Tri-gram") {word = genTextArr[genTextArr.length - 2] + " " + genTextArr[genTextArr.length - 1]}
+        else if (modelType === "Tetra-gram") {word = genTextArr[genTextArr.length - 3] + " " + genTextArr[genTextArr.length - 2] + " " + genTextArr[genTextArr.length - 1]}
+
         //Randomly choose a word from wordOptions, ONLY if we are not at the end of a chain
-        if (nGramDict.get(currentWord) !== undefined) {
+        console.log("CURRENT WORD:", word);
+        console.log("NGRAM:", nGramDict.get(unFormatText(word)));
+        if (nGramDict.get(unFormatText(word)) !== undefined) {
             const start_word = wordOptions[Math.floor(Math.random() * wordOptions.length)];
             //Set current word
             setCurrentWord(start_word);
@@ -161,6 +170,10 @@ export default function GeneratePassage(){
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [reset, textGenMode, modelType])
+
+    useEffect(() => {
+        console.log("CURRENT WORD FOUND:", currentWord)
+    }, [currentWord])
 
     //Each time the currentWord is updated, generate a new selection of words
     useEffect(() => {

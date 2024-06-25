@@ -96,8 +96,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
     //Maximum height of graph away from central axis for both successor layers (vertically and horizontally)
     //For L2 successors, maximum y deviation is auto-calculated and thus does not need to be explicitly defined.
-    const maxDeviationYL1 = -350;
-    const maxDeviationXL1 = 140;
+    let maxDeviationYL1 = -350;
+    let maxDeviationXL1 = 140;
     let maxDeviationYL2 = 25;
     let maxDeviationXL2 = maxDeviationXL1 + 40;
     
@@ -417,7 +417,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
         //Log the positions of all of the first order successors (to aid in generating the second-order bounding box heights)
         let allFirstOrderPositions = [];
 
-        //Array to keep track of maximum widths of each row for second-order successors (needed for bounding box generation)
+        //Array to keep track of maximum widths of each row for first-and-second-order successors (needed for bounding box generation)
+        // let maxFirstOrderWidths = 0;
         let maxWidths = [];
 
         //Array to keep track of the number of second-order columns for each row, if any
@@ -463,8 +464,17 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
         let maxFirstOrderRows = 14;
         let limit = 0;
-        if (renderSecondOrderSuccessors ||  modelType !== "Bi-gram") {limit = 5;}
+        if (renderSecondOrderSuccessors ||  modelType !== "Bi-gram") {
+            limit = 5;
+            maxFirstOrderRows = 5;
+        }
         else {limit = maxFirstOrderRows;}
+
+        //If not rendering second-order successors the model is a tri-or-tetra-gram, change the value of the max Y deviation.
+        if (!renderSecondOrderSuccessors && modelType !== "Bi-gram") {
+            maxDeviationYL1 = -100;
+            yCoordinateL1 = maxDeviationYL1 - (Math.abs(maxDeviationYL1) * 2 / (maxFirstOrderRows - 1))
+        }
 
         for (let i = 0; i < maxFirstOrderSuccessors; i++) {
 
@@ -478,11 +488,24 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             //Node
             if (counterL1 % limit === 0) {
                 if (renderSecondOrderSuccessors || modelType !== "Bi-gram") {
+                    
                     xCoordinateL1 += maxDeviationXL1;
-                    yCoordinateL1 = maxDeviationYL1;
+                    //If this is the last column, push the width to maxFirstOrder
+                    //if (i === maxFirstOrderSuccessors - 1) {maxFirstOrderWidths = xCoordinateL1}
+                    //If not rendering second order successors, start yCoordinateL1 one "level" higher
+                    if (renderSecondOrderSuccessors) {
+                        yCoordinateL1 = maxDeviationYL1;
+                    } else {
+                        let maxCols = 5;
+                        if (successorsL1.length % 5 !== 0 && columnCounterL1 === Math.ceil(successorsL1.length/5)) {maxCols = successorsL1.length % 5}
+                        //if (i === successorsL1.length - 1) {xCoordinateL1 -= maxDeviationXL1}
+                        yCoordinateL1 = maxDeviationYL1 - (Math.abs(maxDeviationYL1) * 2 / (maxCols - 1));
+                    }
+                    
                 } else {
                     xCoordinateL1 += maxDeviationXL1;
                     let rowsInColumn = maxFirstOrderRows;
+                    
                     if (successorsL1.length < maxFirstOrderRows) {rowsInColumn = successorsL1.length};
 
                     // if (Math.floor(successorsL1.length / maxFirstOrderRows) === columnCounterL1 + 1) {
@@ -513,11 +536,16 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             }
 
             if (renderSecondOrderSuccessors || modelType !== "Bi-gram") {
-                yCoordinateL1 += (Math.abs(maxDeviationYL1) * 2 / (maxColumnNodes + 1));
+                if (renderSecondOrderSuccessors) {
+                    yCoordinateL1 += (Math.abs(maxDeviationYL1) * 2 / (maxColumnNodes + 1));
+                } else {
+                    if (successorsL1.length % 5 !== 0 && columnCounterL1 === Math.ceil(successorsL1.length/5)) {maxColumnNodes = successorsL1.length % 5}
+                    yCoordinateL1 += (Math.abs(maxDeviationYL1) * 2 / (5 - 1))
+                }
+                
             } else {
                 yCoordinateL1 += (Math.abs(-170) * 2 / (maxColumnNodes + 1));
             }
-            
 
             //Check how many times the successor as already been added
             let successorCount = allAddedNodes.filter(node => node === successor).length.toString();
@@ -529,6 +557,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             
             //Add jitter if second-order successors are not being rendered
             //If we are dealing with a bi-or-tri-gram model, arrange each word vertically and store.
+            //console.log("SECOND ORDER SUCCESSORS BEING RENDERED:", renderSecondOrderSuccessors);
             if (!renderSecondOrderSuccessors) { //&& maxFirstOrderSuccessors > 1
 
                 if (modelType === "Bi-gram") {
@@ -551,7 +580,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     //Store currently available y-coordinate. For tri-gram models, evenly split the words around the central axis. For tetra-gram models, 
                     //split all three around the given axis.
                     //Assume a maximum sub-y deviation of 30 px
-                    let maxTriTetraYDeviation = 45;
+                    let maxTriTetraYDeviation = 0;
                     let triTetraYCoord = yCoordinateL1 - maxTriTetraYDeviation;
 
                     //Variable to determine number of required partitions
@@ -560,19 +589,19 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     else {n = 3;}
 
                     //Arrange y coordinate accordingly
-                    triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
+                    //triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
 
                     //Create a node from the first word
                     let newFirstWordPoint = {data : {id : successor + successorCount + "_WORD_" + 0, label : words[0]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
 
                     //Update y-coordinate
-                    triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
+                    //triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
 
                     //Create a node from the last two words, immediately below the first
                     //For a tri-gram model, add the next word. For a tetra-gram model, add the next two words.
                     let newEndWordsPoint;
                     if (modelType === "Tri-gram") {
-                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1]}, position : {x: xCoordinateL1, y : triTetraYCoord}, style : {"font-weight" : "bold"}};
+                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " (" + nGramDict.get(unFormatText(startKey)).get(unFormatText(words[1])) + ")"}, position : {x: xCoordinateL1, y : triTetraYCoord}, style : {"font-weight" : "bold"}};
                     } else {
                         newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " " + words[2]}, position : {x: xCoordinateL1, y : triTetraYCoord + 15}, style : {"font-weight" : "bold"}};
                     }
@@ -583,7 +612,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     //No brackets should be added to L1 nodes if no L2 successors are present.
 
                     //Add both branches and the bracket node to the graph
-                    setGraphData(existingGraph => [...existingGraph, newFirstWordPoint]);
+                    //setGraphData(existingGraph => [...existingGraph, newFirstWordPoint]);
                     setGraphData(existingGraph => [...existingGraph, newEndWordsPoint]);
 
 
@@ -1118,30 +1147,43 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             }
         }
         
-
         //If not rendering second order successors, generate a box around the existing graph elements, not including the start word
         if (!renderSecondOrderSuccessors) {
 
             //Establish right and left bounds, including "padding" that is boundingBoxPadding * the width of the node
-            const rightPos = xCoordinateL1 + (boundingBoxPadding * nodeWidth);
-            const leftPos = 2 * maxDeviationXL1 - (boundingBoxPadding * nodeWidth);
+            let rightPos = xCoordinateL1 + (boundingBoxPadding * nodeWidth);
+            let leftPos = 2 * maxDeviationXL1 - (boundingBoxPadding * nodeWidth);
 
             //Find width and midpoint
-            const width = rightPos - leftPos
-            const midpoint = (rightPos + leftPos) / 2;
+            let width = rightPos - leftPos
+            let midpoint = (rightPos + leftPos) / 2;
 
             let height = 0;
-            if (modelType === "Bi-gram") {
+            if (!renderSecondOrderSuccessors && modelType !== "Bi-gram") {
 
-                if (successorsL1.length < maxFirstOrderRows) {height = successorsL1.length * 30}
-                else {height = maxFirstOrderRows * 30;}
+                let columnCount = successorsL1.length / 5;
+                if (successorsL1.length <= 5) {columnCount = 1;}
 
+                height = Math.abs(maxDeviationYL1 * 2) * 1.2;
+                //rightPos = maxDeviationXL1 + maxDeviationXL1 * columnCount;//+ (nodeWidth * columnCount) + boundingBoxPadding;
+                leftPos =  maxDeviationXL1 * 2 - (boundingBoxPadding * nodeWidth);
+                width = rightPos - leftPos
+                midpoint = (rightPos + leftPos) / 2;
+            
             } else {
-
-                if (successorsL1.length < maxFirstOrderRows) {height = Math.abs(successorsL1.length * maxDeviationYL1 * 0.3)}
-                else {height = Math.abs(maxFirstOrderRows * maxDeviationYL1 * 0.3);}
-
+                height = Math.abs(maxDeviationYL1) * 1.1;
             }
+            // if (modelType === "Bi-gram") {
+
+            //     if (successorsL1.length < maxFirstOrderRows) {height = successorsL1.length * 30}
+            //     else {height = maxFirstOrderRows * 30;}
+
+            // } else {
+
+            //     if (successorsL1.length < maxFirstOrderRows) {height = Math.abs(successorsL1.length * maxDeviationYL1 * 0.3)}
+            //     else {height = Math.abs(maxFirstOrderRows * maxDeviationYL1 * 0.3);}
+
+            // }
 
 
             //Define bounding box
@@ -1175,6 +1217,23 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             }
             
             setGraphData(existingGraph => [...existingGraph, newBranchL1]);
+
+            //If this is a tri-or-tetra gram model, add the last word of the start key to the top of the box along with a bracket
+            if (modelType !== "Bi-gram") {
+
+                //Get last word of the start key
+                const topWord = startKey.split(" ")[startKey.split(" ").length - 1];
+
+                //Create top word node
+                let newTopNode = {data : {id : topWord + "_TOP_PHRASE", label : topWord}, position : {x: midpoint, y : -height/2 - 25}};
+                //Create bracket node
+                let newBracketNode = {data : {id : topWord + "_BRACKET", label : "]"}, position : {x: midpoint + ((rightPos - leftPos))/2 + 25 , y : - (height/2)}, style : {height : 50, width : 25, "font-size" : 90}};
+
+                //Add nodes to graph
+                setGraphData(existingGraph => [...existingGraph, newTopNode]);
+                setGraphData(existingGraph => [...existingGraph, newBracketNode]);
+                
+            }
         
         //If rendering second-order successors, generate an individual box around each level of second-order successors
         } else {
