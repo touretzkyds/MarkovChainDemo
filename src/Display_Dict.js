@@ -112,11 +112,32 @@ function DisplayDict() {
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nGramDict])
-    
+
+    //Function to convert any map to an object
+    const convertMapToObject = (map) => {
+
+        //To save nGramDict, which is a map of maps, we must first convert it to an object
+        const mapObj = {};
+
+        //Iterate through map
+        for (let [key, value] of map) {
+            //If the object is a map (which it will be because it is a map of maps), employ recursion
+            if (value instanceof Map) {
+                mapObj[key] = convertMapToObject(value);
+            } else {mapObj[key] = value;}
+        }
+
+        return mapObj;
+    }
+
     //Save function
     const save_dictionary = () => {
+        
+        //Convert to object
+        const nGramObj = convertMapToObject(nGramDict);
+
         //Convert to JSON
-        const json_obj = JSON.stringify([...nGramDict]);
+        const json_obj = JSON.stringify([nGramObj, null, 2]);
         //Blob
         const blob = new Blob([json_obj], {type : "application/json"});
         //Download URL

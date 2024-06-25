@@ -3,7 +3,10 @@ import { useDictContext } from "./Context";
 
 export default function ManualTextOptions(props){
     //Get dictionary, model type, generated text, and word count
-    const {enableButton, reFormatText, wordOptions} = useDictContext();
+    const {nGramDict, generatedText, enableButton, reFormatText, wordOptions} = useDictContext();
+
+    //Generated text split into individual words
+    let genSplitText = generatedText.split(" ");
 
     //Render the wordOptions pane during manual text generation
     return (
@@ -14,12 +17,12 @@ export default function ManualTextOptions(props){
                     <div key = {index}>
                         {word === "End of chain" ? (
                             <button key = {index} class = "flex w-full shadow-md text-center items-center justify-center rounded-3xl p-2 bg-zinc-50 font-bold text-red-500">{
-                                reFormatText(word)
+                                reFormatText(word) 
                             }</button>
                         ) : (
-                            <button key = {index} onClick = {props.word_chosen} class = "flex w-full shadow-md text-center items-center justify-center rounded-3xl p-2 bg-zinc-50 font-bold text-red-500">{
-                                reFormatText(word)
-                            }</button>
+                            <button key = {index} onClick = {props.word_chosen} class = "flex w-full shadow-md text-center items-center justify-center rounded-3xl p-2 bg-zinc-50 font-bold text-red-500">
+                                {reFormatText(word)} ({nGramDict.get(genSplitText[genSplitText.length - 1]).get(word)})
+                            </button>
                         )}
                     </div>
                 ))

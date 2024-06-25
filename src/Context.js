@@ -458,7 +458,6 @@ export const DictContextProvider = ({ children }) => {
         for (let i = 0; i < words.length - 3; i ++) {
             
             let key = words[i] + " " + words[i+1] + " " + words[i+2];
-            console.log("GIVEN KEY:", key)
             let values = Array.from(tetragram_map.get(key));
 
             //Get all frequencies, sum, and normalize.

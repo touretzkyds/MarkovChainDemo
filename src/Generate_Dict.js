@@ -119,7 +119,6 @@ export default function GenerateDict(props){
         
             // Get all sections from the response
             const data = wikiResponse.data;
-            console.log("WIKI RESPONSE:", wikiResponse);
 
             // Check if the extraction was successful
             if (data?.parse?.sections === undefined) {
@@ -253,7 +252,6 @@ export default function GenerateDict(props){
         //Also check that we are not in the state just after the clear button has been clicked
         //Finally, verify that the frequencies dictionary has been built
         if (textGenMode !== "manual" && nGramDict.size !== 0 && Object.keys(frequencies).length !== 0) {
-            console.log("N GRAM DICT PRIOR TO TEXT GENERATION:", nGramDict);
             setGeneratedText(generate_text(nGramDict, modelType, wordCount));
         }
 

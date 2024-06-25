@@ -108,10 +108,12 @@ export default function GeneratePassage(){
 
     //When the Random Choice button is clicked in manual generation mode.
     const random_word_choice = () => {
-        //Randomly choose a word from wordOptions
-        const start_word = wordOptions[Math.floor(Math.random() * wordOptions.length)];
-        //Set current word
-        setCurrentWord(start_word);
+        //Randomly choose a word from wordOptions, ONLY if we are not at the end of a chain
+        if (nGramDict.get(currentWord) !== undefined) {
+            const start_word = wordOptions[Math.floor(Math.random() * wordOptions.length)];
+            //Set current word
+            setCurrentWord(start_word);
+        }
     }
 
     //Choose a word - set the chosen word as the current word, and update wordOptions with new values
@@ -175,7 +177,10 @@ export default function GeneratePassage(){
             let values = []
             
             //Change keys based on the model - use currentWord as key for bi-gram, the last word + currentWord for tri-gram, and the last two words + currentWord for the tetra-gram
-            if (modelType === "Bi-gram"){
+            if (nGramDict.get(currentWord) === undefined) {
+                console.log(nGramDict.get(currentWord))
+                values = undefined;
+            } else if (modelType === "Bi-gram"){
 
                 //Get values via currentWord
                 values = Array.from(nGramDict.get(currentWord)).map(function (pair) {return pair[0];});
@@ -232,8 +237,10 @@ export default function GeneratePassage(){
     const word_chosen = (button_element) => {
 
         //Check iterations - if the wordCount number of iterations have passed, set the word options to complete.
-        //Get the chosen word
-        const chosen_word = button_element.target.textContent.replace("<PERIOD>", ".").replace("<EXCL>", "!").replace("<Q>", "?").trim()
+        //Get the chosen word, excluding probabilities (anything in brackets)
+        //Get bracket index
+        const bracketIdx = button_element.target.textContent.indexOf("(");
+        const chosen_word = button_element.target.textContent.substring(0, bracketIdx).replace("<PERIOD>", ".").replace("<EXCL>", "!").replace("<Q>", "?").trim()
         //Set 
         setCurrentWord(chosen_word);
 

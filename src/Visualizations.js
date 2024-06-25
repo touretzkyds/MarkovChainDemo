@@ -363,6 +363,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
         }
 
         //Iterate through each successor word
+        //If the word has no further successors, create a second node titled "END OF CHAIN"
+        if (nGramDict.get(startKey) === undefined) {return;}
         let successorsL1 = Array.from(nGramDict.get(startKey));
         successorsL1 = successorsL1.map(function (pair) {return pair[0];})
         
@@ -669,6 +671,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             else if (modelType === "Tetra-gram") {secondOrderKey = startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor}
 
             //Second order successors
+            //Again, if they don't exist, create an END OF CHAIN node, draw a branch, and return
+            if (nGramDict.get(secondOrderKey) === undefined) {return;}
             let successorsL2 = Array.from(nGramDict.get(secondOrderKey));
 
             //Get second successor group
@@ -1185,7 +1189,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                 //Verify that the length of the second order successors is greater than one; if not, make the box invisible
                 let box_color = "black"
-                if (successorL2Lengths[i] < 2) {box_color = "white";}
+                if (successorL2Lengths[i] <= 2) {box_color = "white";}
 
                 //Define positions of left and right boxes
                 //Add boundingBoxPadding * the node width to ensure the box goes around the words
@@ -1328,7 +1332,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                         newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : "1"}};
                     }
                     
-                
                 } else {
 
                     //If there is only one L2 successor, point directly to the final word.
@@ -1439,7 +1442,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
     }, [textGenMode])
 
     useEffect(() => {
-        if (textGenMode === "automatic" && !pane2KeyClicked) {
+        if (textGenMode === "automatic" && !pane2KeyClicked && nGramDict.size !== 0) {
             renderGraph();
         }
 
@@ -1451,7 +1454,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
     useEffect(() => {
         if (textGenMode === "automatic" && pane2KeyClicked) {
             setPane2KeyClicked(false);
-            renderGraph();}
+            renderGraph();
+        }
 
         //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
