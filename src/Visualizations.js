@@ -1248,7 +1248,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                 //Verify that the length of the second order successors is greater than one; if not, make the box invisible
                 let box_color = "black"
-                if (successorL2Lengths[i] <= 2) {box_color = "white";}
+                if (successorL2Lengths[i] < 2) {box_color = "white";}
 
                 //Define positions of left and right boxes
                 //Add boundingBoxPadding * the node width to ensure the box goes around the words
