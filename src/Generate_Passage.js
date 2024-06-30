@@ -22,7 +22,7 @@ export default function GeneratePassage(){
     //Keep track for the switch whether the mode of generation is automatic or not
     const [isAutomaticSwitch, setIsAutomaticSwitch] = useState(true);
     //Whether the display pane has been reset
-    const [reset, setReset] = useState(false);
+    const [reset, setReset] = useState(false);    
 
     //Set display text as blank initially
     let display_text = "";
@@ -38,6 +38,7 @@ export default function GeneratePassage(){
     
     //Get mode of generation when changed
     const change_mode_generation = () => {
+        console.log("ADD THE CONSOLE GENERATION LOG TO MAKE THIS HAPPEN.")
         //Toggle current mode of generation to the opposite
         setIsAutomaticSwitch(!isAutomaticSwitch);
     }
@@ -188,10 +189,8 @@ export default function GeneratePassage(){
 
             //Set to receive next series of words
             let values = []
-            
-            //Change keys based on the model - use currentWord as key for bi-gram, the last word + currentWord for tri-gram, and the last two words + currentWord for the tetra-gram
-            if (nGramDict.get(currentWord) === undefined) {
-                console.log(nGramDict.get(currentWord))
+
+            if (modelType === "Bi-gram" && nGramDict.get(currentWord) === undefined) {
                 values = undefined;
             } else if (modelType === "Bi-gram"){
 
@@ -205,14 +204,17 @@ export default function GeneratePassage(){
 
                 //If we have passed the maximum viable word, set values to null
                 if (currentWordCounter > display_text.trim().split(" ").length - 2) {values = undefined;}
+
                 else {
+
                     //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
                     const local_key = display_text.trim().split(" ").slice(currentWordCounter, currentWordCounter + 2).toString().replace(",", " ");
-                    //Get values
                     
+                    //Get values
                     values = Array.from(nGramDict.get(local_key.trim())).map(function (pair) {return pair[0];});
+                    
                     //Set key
-                    setKey(local_key);
+                    setKey(currentWord);
                 }
 
             } else if (modelType === "Tetra-gram") {
@@ -221,29 +223,35 @@ export default function GeneratePassage(){
                 if (currentWordCounter > display_text.trim().split(" ").length - 3) {values = undefined;}
 
                 else {
+                    
                     //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
                     const local_key = display_text.trim().split(" ").slice(currentWordCounter, currentWordCounter + 3).toString().replace(",", " ").replace(",", " ");
+                    
                     //Get values
                     values = Array.from(nGramDict.get(local_key.trim())).map(function (pair) {return pair[0];});
+                    
                     //Set key
                     setKey(local_key);
+
                 }
 
             }
 
             //Check if values is undefined. If so, notify the user that the end of the chain has been reached
-            if (values === undefined) {setWordOptions(["End of chain"])} 
+            if (values === undefined || values.length === 0) {setWordOptions(["End of chain"])} 
+
             else {
+
                 const new_words = [...values];
                 //Set to word array
                 setWordOptions(new_words);
+
                 //Increment index of current word
                 const currentWordIndex = currentWordCounter;
                 setCurrentWordCounter(currentWordIndex + 1);
-            }
-        
-        }
 
+            }
+        }
     }, [currentWord, reset])
 
     //Manage when a word is chosen
@@ -254,8 +262,18 @@ export default function GeneratePassage(){
         //Get bracket index
         const bracketIdx = button_element.target.textContent.indexOf("(");
         const chosen_word = button_element.target.textContent.substring(0, bracketIdx).replace("<PERIOD>", ".").replace("<EXCL>", "!").replace("<Q>", "?").trim()
-        //Set 
+        
         setCurrentWord(chosen_word);
+        //If a bi-gram model, simply set the current word as the chosen one.
+        //For tri-and-tetra-gram models, concatenate with the previous and second previous words respectively.
+        // if (modelType === "Bi-gram") {
+        //     setCurrentWord(chosen_word);
+        // } else if (modelType === "Tri-gram") {
+        //     setCurrentWord(generatedText.split(" ")[generatedText.split(" ").length - 1] + " " + chosen_word);
+        // } else {
+        //     setCurrentWord(generatedText.split(" ")[generatedText.split(" ").length - 2] + " " + generatedText.split(" ")[generatedText.split(" ").length - 1] + " " + chosen_word);
+        // }
+        
 
     }
     

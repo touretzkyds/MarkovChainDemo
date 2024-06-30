@@ -47,6 +47,13 @@ export default function GenerateDict(props){
         setInputText(text.target.value)
         //Check if we are not currently performing manual text generation
         setEnableButton(true);
+        //Clear panes 2-4
+        setNGramDict(new Map());
+        setBranchingFactor(0);
+        setWikiArticleTitle("🔍Search for a Wikipedia Article.");
+        setGeneratedText("Enter text, import, or re-build dictionary in pane one first.");
+        setWikiImported(false);
+        setWikiImportSuccessful(true);
     }
 
     //To update the token count
@@ -54,6 +61,7 @@ export default function GenerateDict(props){
         //Update the token count if the length of the words is nonzero, otherwise set to zero
         if (inputText === "") {setTokenCount(0);}
         else {get_words(inputText);}
+
         //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,11 +92,18 @@ export default function GenerateDict(props){
         }
     }
 
+    //Function for the import button
+    //Mapping clicking the enter key to the submit button
+    const importButtonClicked = () => {
+        importWikiArticle();
+        const wikiTitle = wikiArticleTitle;
+        clearButtonClicked();
+        setWikiArticleTitle(wikiTitle);
+
+    }
+
     //For when the Wikipedia input area is clicked
     const wikiInputClicked = () => {
-        if (wikiArticleTitle === "🔍Search for a Wikipedia Article.") {
-            clearButtonClicked()
-        }
         setWikiArticleTitle("");
     }
 
@@ -221,7 +236,6 @@ export default function GenerateDict(props){
 
     //Use Effect -> builds dictionary and generates text each time the model type is changed or a Wikipedia article is imported and the enable button is disabled.
     useEffect (() => {
-        //Check if the button is not enabled and that manual text generation is not currently being done
         if (!enableButton) {
             //Trigger dictionary generation
             setNGramDict(build_dictionary(inputText, modelType));
@@ -281,7 +295,7 @@ export default function GenerateDict(props){
                         {wikiImportSuccessful ? (
                             <div className = "wikipedia-import-successful" class = "flex flex-row items-center align-center justify-center space-x-2 w-full h-full">
                                 <textarea className = "wiki-search-area" onChange = {wikiTitleChange} onKeyDown = {wikiEnterButton} onClick = {wikiInputClicked} class = "flex text-xs w-8/12 h-full overflow-x-auto overflow-hidden text-center items-center justify-center overflow-none rounded-lg outline outline-slate-200 focus:outline-none focus:ring focus:border-slate-500" value = {wikiArticleTitle}></textarea>
-                                <button className = "import-from-wiki" onClick = {importWikiArticle} class = "flex w-3/12 h-full rounded-md font-bold bg-green-900 text-white text-center align-center items-center self-center justify-center monitor:text-sm 2xl:text-sm xl:text-xs sm:text-xs hover:bg-slate-700 hover:ring">Import</button> 
+                                <button className = "import-from-wiki" onClick = {importButtonClicked} class = "flex w-3/12 h-full rounded-md font-bold bg-green-900 text-white text-center align-center items-center self-center justify-center monitor:text-sm 2xl:text-sm xl:text-xs sm:text-xs hover:bg-slate-700 hover:ring">Import</button> 
                             </div>   
                         ) : (
                             <div className = "wikipedia-import-successful" class = "flex flex-row items-center align-center justify-center space-x-2 w-full h-full">

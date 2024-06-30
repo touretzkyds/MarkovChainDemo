@@ -304,8 +304,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 //startKey = dictKeys[Math.floor(Math.random() * dictKeys.length)];
         }
 
-
-
         if (startKey === undefined || startKey === null || startKey === "") {return}
 
         if (!startKey.split(" ").includes("undefined")) {
@@ -701,7 +699,12 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
             //Second order successors
             //Again, if they don't exist, create an END OF CHAIN node, draw a branch, and return
-            if (nGramDict.get(secondOrderKey) === undefined) {return;}
+            if (nGramDict.get(secondOrderKey) === undefined) {
+                let newBranchL1 = {data : {source : reFormatText(startKey), target : successor + "0", label : "1"}};
+                setGraphData(existingGraph => [...existingGraph, newBranchL1]);
+
+                return;
+            }
             let successorsL2 = Array.from(nGramDict.get(secondOrderKey));
 
             //Get second successor group
@@ -1387,6 +1390,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 if (modelType === "Bi-gram") {
                     if (successorL2Lengths[i] > 1) {
                         newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : ""}};
+                    
                     } else {
                         newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : "1"}};
                     }
