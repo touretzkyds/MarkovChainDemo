@@ -371,7 +371,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
         //Array of all L0L1 successor IDs (needed for the branches going from the root word to the first level)
         let successorIDsL0L1 = [];
-        //Array of all L1L2 successor IDs (for the branches going from L1 to L2)
+        //2D array of all L1L2 successor IDs (for the branches going from L1 to L2)
         let successorIDsL1L2 = [];
 
         //Bracket nodes
@@ -555,7 +555,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             
             //Add jitter if second-order successors are not being rendered
             //If we are dealing with a bi-or-tri-gram model, arrange each word vertically and store.
-            //console.log("SECOND ORDER SUCCESSORS BEING RENDERED:", renderSecondOrderSuccessors);
             if (!renderSecondOrderSuccessors) { //&& maxFirstOrderSuccessors > 1
 
                 if (modelType === "Bi-gram") {
@@ -785,7 +784,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                 //Get the length
 
-                //console.log("INTENDED VALUE:", successorL2Lengths[i] / columnSizes[i])
                 totalL2Columns[i] = Math.floor(successorL2Lengths[i] / columnSizes[i]);
                 //If a remainder is present, add one
                 if (successorL2Lengths[i] % columnSizes[i] !== 0) {totalL2Columns[i]++;}
@@ -796,7 +794,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 
             }
 
-            //console.log("TOTAL L2 COLUMNS:", totalL2Columns);
             //While the number of specified columns hasn't increased, pick the largest L2 successor chain and reduce accordingly
             
             let highestIdx = 0;
@@ -839,8 +836,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 //Store top two highest values
                 highestIdx = Number(sortedL2Columns[0]);
                 secondHighestIdx = Number(sortedL2Columns[1]);
-
-                //console.log("SUCCESSOR L2 AT HIGHEST IDX:", totalL2Columns[highestIdx])
 
                 //If only one set of second-order successors is present, set the height to the maximum number of rows
                 //But, if there is not more than one successor and the remainder is less than half of the given row size, increase the row size and repeat
@@ -1036,7 +1031,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 }
                 moreThanOneSuccessor[i] = true;
             }
-            // console.log("INITIAL MORE THAN ONE SUCCESSOR ASSIGNMENT:", moreThanOneSuccessor[i]);
 
             //L2 Successor Length (store in array as well)
             let l2SuccessorLength = successorsL2.length;
@@ -1044,6 +1038,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
         
             //Store successors in 2D array for box ID creation
             successorsL1L2.push([]);
+            successorIDsL1L2.push([]);
 
             //Coordinates
             let xCoordinateL2 = maxDeviationXL2 * 3;
@@ -1140,15 +1135,21 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 allAddedNodes.push(successorL2);
                 counterL2++;
 
+                //Push the ID of each L2 successor into the ID array
+                successorIDsL1L2[i].push(successorL2 + successorCountL2);
+
                 //If there is only one successor (keep in mind that the final words of the previous key have been added to successorsL2.length), add the final word to successorIDsL1L2 array
-                if (!moreThanOneSuccessor[i] && j === successorsL2.length - 1) {
-                    successorIDsL1L2.push(successorL2 + successorCountL2);
-                //Otherwise, push an empty string (blank)
-                } else if (moreThanOneSuccessor[i] && j === successorsL2.length - 1){successorIDsL1L2.push("");}
+                // if (!moreThanOneSuccessor[i] && j === successorsL2.length - 1) {
+                //     successorIDsL1L2.push(successorL2 + successorCountL2);
+                // //Otherwise, push an empty string (blank)
+                // } else if (moreThanOneSuccessor[i] && j === successorsL2.length - 1){successorIDsL1L2.push("");}
                 
 
             }
         }
+
+        //Maximum allowed column size for separating a column into individual nodes
+        let maxNodeSplitSize = 6;
         
         //If not rendering second order successors, generate a box around the existing graph elements, not including the start word
         if (!renderSecondOrderSuccessors) {
@@ -1160,6 +1161,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             //Find width and midpoint
             let width = rightPos - leftPos
             let midpoint = (rightPos + leftPos) / 2;
+
+            let boxBorderWidth = 3;
+            if (modelType === "Bi-gram" && successorIDsL0L1.length <= Math.min(maxFirstOrderRows, maxNodeSplitSize)) {boxBorderWidth = 0;}
 
             let height = 0;
             if (!renderSecondOrderSuccessors && modelType !== "Bi-gram") {
@@ -1176,18 +1180,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             } else {
                 height = Math.abs(maxDeviationYL1) * 1.1;
             }
-            // if (modelType === "Bi-gram") {
-
-            //     if (successorsL1.length < maxFirstOrderRows) {height = successorsL1.length * 30}
-            //     else {height = maxFirstOrderRows * 30;}
-
-            // } else {
-
-            //     if (successorsL1.length < maxFirstOrderRows) {height = Math.abs(successorsL1.length * maxDeviationYL1 * 0.3)}
-            //     else {height = Math.abs(maxFirstOrderRows * maxDeviationYL1 * 0.3);}
-
-            // }
-
 
             //Define bounding box
             const boundingBox = {
@@ -1203,7 +1195,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     shape : "roundrectangle",
                     'background-color' : "F5F5F5",
                     "background-opacity" : 100,
-                    "border-width" : 3,
+                    "border-width" : boxBorderWidth,
                     "border-color" : "black",
                 }
             }
@@ -1213,13 +1205,31 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
             //Add branches - include "BRACKET" tag if a tri-or-tetra-gram model
             let newBranchL1;
+
+            //If only one column is present, split into individual nodes (only for Bi-gram models)
             if (modelType === "Bi-gram") {
-                newBranchL1 = {data : {source : reFormatText(startKey), target : "BOX_L1", label : ""}};
+                if (successorIDsL0L1.length <= Math.min(maxFirstOrderRows, maxNodeSplitSize)) {
+                    
+                    //Iterate through each node and draw a branch
+                    //Iterate over all L2 IDs
+                    for (let x = 0; x < successorIDsL0L1.length; x++) {
+
+                        //Create branch
+                        let newDirectBranch = {data : {source : reFormatText(startKey), target : successorIDsL0L1[x], label : ""}, style : {"control-point-distance" : "-100px", "control-point-weight" : 0.25}};
+
+                        //Push to graph
+                        setGraphData(existingGraph => [...existingGraph, newDirectBranch]);
+                        
+                    }
+
+                } else {
+                    newBranchL1 = {data : {source : reFormatText(startKey), target : "BOX_L1", label : ""}};
+                }
             } else {
                 newBranchL1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : "BOX_L1", label : ""}};
             }
             
-            setGraphData(existingGraph => [...existingGraph, newBranchL1]);
+            if (newBranchL1 !== undefined) {setGraphData(existingGraph => [...existingGraph, newBranchL1]);}
 
             //If this is a tri-or-tetra gram model, add the last word of the start key to the top of the box along with a bracket
             if (modelType !== "Bi-gram") {
@@ -1250,8 +1260,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             for (let i = 0; i < maxFirstOrderSuccessors; i++) {
 
                 //Verify that the length of the second order successors is greater than one; if not, make the box invisible
-                let box_color = "black"
-                if (successorL2Lengths[i] < 2) {box_color = "white";}
+                let boxBorderWidth = 3;
+                if (successorL2Lengths[i] < 2 || (modelType === "Bi-gram" && successorIDsL1L2[i].length <= Math.min(columnSizes[i], maxNodeSplitSize))) {boxBorderWidth = 0;}
+
 
                 //Define positions of left and right boxes
                 //Add boundingBoxPadding * the node width to ensure the box goes around the words
@@ -1325,7 +1336,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                     //If this box is a single successor (i.e. a single word), shrink the height dramatically to prevent any overlap between the white and black borders
 
-                    if (box_color === "white" && modelType === "Bi-gram") {height = 77;}
+                    if (boxBorderWidth === 0 && modelType === "Bi-gram") {height = 77;}
                     else {height = numWordsHighest * 25};
 
                     //Set the actual L2 bounding box
@@ -1342,8 +1353,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                             shape : "roundrectangle",
                             'background-color' : "white",
                             "background-opacity" : 0,
-                            "border-width" : 3,
-                            "border-color" : box_color,
+                            "border-width" : boxBorderWidth,
+                            "border-color" : "black",
                         }
                     }
 
@@ -1386,28 +1397,42 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 //From the first level to the second. For bi-gram models, this is the same word.
                 //For tri-and-tetra gram models, use the successorIDsL1L2 array (as we want the source of the branch to be the final word for a given key)
                 let newBranchL1L2;
-
                 if (modelType === "Bi-gram") {
-                    if (successorL2Lengths[i] > 1) {
-                        newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : ""}};
                     
-                    } else {
+                    //If only one L2 successor is present, draw a single line to said word
+                    if (successorIDsL1L2[i].length === 1) {
                         newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : "1"}};
+                    
+                    //If there is only ONE column of words, remove the box and split each word into an individual node with a branch connected to it
+                    } else if (successorIDsL1L2[i].length <= Math.min(columnSizes[i], maxNodeSplitSize)) {
+                        
+                        //Iterate over all L2 IDs
+                        for (let x = 0; x < successorIDsL1L2[i].length; x++) {
+
+                            //Create branch
+                            let newDirectBranch = {data : {source : successorIDsL0L1[i], target : successorIDsL1L2[i][x], label : ""}, style : {"control-point-distance" : "-100px", "control-point-weight" : 0.25}};
+
+                            //Push to graph
+                            setGraphData(existingGraph => [...existingGraph, newDirectBranch]);
+                            
+                        }
+
+                    //If more than one successor is present, however, simply connect to the box and push
+                    } else if (successorL2Lengths[i] > 1) {
+                        newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : ""}};
                     }
                     
                 } else {
 
                     //If there is only one L2 successor, point directly to the final word.
                     if (!moreThanOneSuccessor[i]) {
-                        newBranchL1L2 = {data : {source : bracketNodesL1L2[i], target : successorIDsL1L2[i], label : "1"}};
+                        newBranchL1L2 = {data : {source : bracketNodesL1L2[i], target : successorIDsL1L2[i][successorIDsL1L2[i].length - 1], label : "1"}};
                     //Otherwise, point to the box.
                     } else {
                         newBranchL1L2 = {data : {source : bracketNodesL1L2[i], target : "BOX_L2_" + i, label :  ""}};
                     }
                 }
-                
-                setGraphData(existingGraph => [...existingGraph, newBranchL1L2]);
-
+                if (newBranchL1L2 !== undefined) {setGraphData(existingGraph => [...existingGraph, newBranchL1L2]);}
                 //If more than one successor is present, as mentioned earlier, we must add the hanging initial phrases on top of the given branches
                 //Also add a bracket from the top of said hanging phrase to the bottom of the bounding box
 
@@ -1440,7 +1465,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                         //Right bound of the bracket will be midpoint + 1/2 of the longest length times the number of pixels occupied by the characters.
                         //The optimal constant can be found through trial and error; but generally, will be between 8 - 20 (divided by two of course)
 
-                        let newBracketNode = {data : {id : successorIDsL1L2[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (longestLength * 10), y : allFirstOrderPositions[i]}, style : {height : 50, width : 25, "font-size" : 90}};
+                        let newBracketNode = {data : {id : successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET", label : "]"}, position : {x: midpoint + (longestLength * 10), y : allFirstOrderPositions[i]}, style : {height : 50, width : 25, "font-size" : 90}};
                         setGraphData(existingGraph => [...existingGraph, newBracketNode]);
                     }
                 }

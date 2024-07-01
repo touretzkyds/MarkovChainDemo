@@ -38,7 +38,6 @@ export default function GeneratePassage(){
     
     //Get mode of generation when changed
     const change_mode_generation = () => {
-        console.log("ADD THE CONSOLE GENERATION LOG TO MAKE THIS HAPPEN.")
         //Toggle current mode of generation to the opposite
         setIsAutomaticSwitch(!isAutomaticSwitch);
     }
@@ -77,7 +76,7 @@ export default function GeneratePassage(){
     //Click handler
     const gen_button_clicked = () => {
         //Generate text
-        setGeneratedText(generate_text(null, nGramDict, modelType, wordCount))
+        setGeneratedText(generate_text(null, nGramDict, modelType, wordCount).trim())
         //Set automatic graph generation to permitted
         setAutoGraphAllowed(true);
     }
@@ -117,8 +116,6 @@ export default function GeneratePassage(){
         else if (modelType === "Tetra-gram") {word = genTextArr[genTextArr.length - 3] + " " + genTextArr[genTextArr.length - 2] + " " + genTextArr[genTextArr.length - 1]}
 
         //Randomly choose a word from wordOptions, ONLY if we are not at the end of a chain
-        console.log("CURRENT WORD:", word);
-        console.log("NGRAM:", nGramDict.get(unFormatText(word)));
         if (nGramDict.get(unFormatText(word)) !== undefined) {
             const start_word = wordOptions[Math.floor(Math.random() * wordOptions.length)];
             //Set current word
@@ -172,10 +169,6 @@ export default function GeneratePassage(){
         //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [reset, textGenMode, modelType])
 
-    useEffect(() => {
-        console.log("CURRENT WORD FOUND:", currentWord)
-    }, [currentWord])
-
     //Each time the currentWord is updated, generate a new selection of words
     useEffect(() => {
         if (currentWord !== "" && currentWord !== undefined && reset) {
@@ -183,7 +176,9 @@ export default function GeneratePassage(){
             //Display current word + previously generated text to pane
             //Do this only if in manual text generation mode
             if (textGenMode === "manual") {
-                display_text = generatedText + " " + currentWord;   
+                //If generatedText is an empty string, simply set the display text to the current word. Otherwise, concatenate the two with a space
+                if (generatedText === "") {display_text = currentWord;}
+                else {display_text = generatedText + " " + currentWord; }
                 setGeneratedText(display_text);
             }
 
@@ -355,7 +350,7 @@ export default function GeneratePassage(){
                         <div className = "generated-text" class = "w-full h-full bg-white outline outline-green-100 rounded-md overflow-y-auto p-2 text-left">{generatedText}</div>
                         <div class = "w-0"></div>
                     </div>
-                ): (
+                ) : (
                     <div className = "manual-text-container" class = "flex flex-row w-full h-full space-x-2">
                         <div className = "generated-text" class = "flex w-9/12 h-full bg-white outline outline-green-100 rounded-md overflow-y-auto p-2 text-left">
                             <div className = "text-container" class = "flex flex-wrap h-fit w-fit">
