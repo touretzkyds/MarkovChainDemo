@@ -347,7 +347,10 @@ export const DictContextProvider = ({ children }) => {
             let j = 0;
 
             for (let [valueKey, valueProb] of value_map) {
-                value_map.set(valueKey, parseFloat(allFrequencies[j].toFixed(2)));
+                //Round to two decimal places
+                let roundedVal = parseFloat(allFrequencies[j].toFixed(2));
+
+                value_map.set(valueKey, roundedVal);
                 j++;
             }
             

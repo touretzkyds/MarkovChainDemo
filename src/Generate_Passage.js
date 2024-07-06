@@ -8,7 +8,7 @@ export default function GeneratePassage(){
 
     //Get user ID and other helper variables from context
     //In particular, leverage nodesAdded rather than generatedText to display iteratively and highlight keys in automatic generation mode
-    const {nGramDict, enableButton, currentWord, modelType, 
+    const {nGramDict, enableButton, currentWord, modelType, setNGramDict,
            setAutoGraphAllowed, generatedText, setGeneratedText,
            setManualGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, 
            key, setKey, setWordCount, textGenMode, setTextGenMode, 
@@ -105,6 +105,22 @@ export default function GeneratePassage(){
         setCurrentWordCounter(0);
         
     }
+
+    // //When the text generation mode is changed and the corresponding dictionary has not yet been built, clear panes 3 and 4.
+    // useEffect(() => {
+
+    //     let n = 3;
+    //     if (modelType === "Bi-gram") {n = 1}
+    //     else if (modelType === "Tri-gram") {n = 2}
+
+    //     if (nGramDict.size !== 0 && nGramDict.keys().next().value.split(" ").length !== n && textGenMode === "manual") {
+    //         console.log("n gram dictL", nGramDict)
+    //         setEnableNextWord(false);
+    //     }
+
+
+    // }, [modelType])
+
 
     //When the Random Choice button is clicked in manual generation mode.
     const random_word_choice = () => {

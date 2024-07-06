@@ -1,4 +1,4 @@
-import React, {useEffect} from "react";
+import React, {useState, useEffect} from "react";
 import { useDictContext } from "./Context";
 
 //For infinite text generation, if needed. This feature is currently disabled; some pieces of code are commented out as a result.
@@ -13,7 +13,22 @@ function DisplayDict() {
     const { nGramDict, modelType, setModelType, branchingFactor, 
             setBranchingFactor, pane2KeyClicked, setPane2KeyClicked, globalStartKey, setGlobalStartKey, 
             manualStartKey, setManualStartKey, unFormatText, currentWord, setCurrentWord, setCurrentWordCounter, textGenMode,
-            lenDict, setLenDict, reFormatText, branching_factor, setGeneratedText, generate_text, wordCount} = useDictContext();
+            lenDict, setLenDict, reFormatText, branching_factor, setGeneratedText, generate_text, wordCount, wordOptions} = useDictContext();
+
+    //Variable to determine whether pane 2 has finished rendering the dictionary
+    const [finishedRendering, setFinishedRendering]  = useState(false);
+    
+    //Set to true when the component mounts
+    useEffect(() => {
+        setFinishedRendering(true);
+    }, [])
+    
+    //Set to false when the dictionary is re-built - when this happens, set generated text to a blank string as well
+    useEffect(() => {
+        setFinishedRendering(false);
+        //setGeneratedText("");
+    }, [nGramDict])
+
 
     //INFINITE SCROLLING VARIABLES AND FUNCTIONS
 
@@ -198,7 +213,7 @@ function DisplayDict() {
                             {Array.from(values).map(([item, count], index, successorArr) => (
                                 <React.Fragment key={`${values}-${item}`}>
                                     <li className="inline list-none">
-                                        {reFormatText(item)} (<span>{count}</span>)
+                                        {reFormatText(item)} (<span>{count.toFixed(2)}</span>)
                                     </li>
                                     {index < successorArr.length - 1 && <span>, </span>}
                                 </React.Fragment>

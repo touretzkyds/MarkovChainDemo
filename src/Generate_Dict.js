@@ -24,7 +24,7 @@ const cleanWikiText = (wikiText) => {
 
 export default function GenerateDict(props){
     //Get dictionary, branching factor, and number of bigrams from context manager
-    const {inputText, setInputText, enableButton, setEnableButton, 
+    const {inputText, setInputText, enableButton, setEnableButton,
            nGramDict, setNGramDict, modelType, frequencies, setBranchingFactor, 
            setGeneratedText, wordCount, tokenCount, setTokenCount,
            textGenMode, get_words, build_dictionary, generate_text} = useDictContext();
@@ -89,6 +89,8 @@ export default function GenerateDict(props){
             const wikiTitle = wikiArticleTitle;
             clearButtonClicked();
             setWikiArticleTitle(wikiTitle);
+            if (textGenMode !== "manual") {setGeneratedText("Please wait while we load the specified text...");}
+            
         }
     }
 
@@ -99,6 +101,8 @@ export default function GenerateDict(props){
         const wikiTitle = wikiArticleTitle;
         clearButtonClicked();
         setWikiArticleTitle(wikiTitle);
+
+        setGeneratedText("Please wait while we load the specified text...");
 
     }
 
@@ -228,7 +232,7 @@ export default function GenerateDict(props){
         setNGramDict(new Map());
         setBranchingFactor(0);
         setWikiArticleTitle("🔍Search for a Wikipedia Article.");
-        setGeneratedText("Enter text or import in pane one first.");
+        if (textGenMode !== "manual") {setGeneratedText("Enter text or import in pane one first.");}
         setWikiImported(false);
         setWikiImportSuccessful(true);
 
