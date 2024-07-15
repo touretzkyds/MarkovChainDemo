@@ -97,11 +97,13 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
     //Maximum height of graph away from central axis for both successor layers (vertically and horizontally)
     //For L2 successors, maximum y deviation is auto-calculated and thus does not need to be explicitly defined.
-    let maxDeviationYL1 = -400; //340
+    let maxDeviationYL1 = -500; //340
     //Max Deviation YL1 for first-generation boxes (spacing is not necessary)
     let maxDeviationYL1BoxL1 = -200;
     let maxDeviationXL1 = 170;
     let maxDeviationYL2 = 25;
+    //Control the spread of L2 nodes
+    let maxDeviationSplitL2 = 200;
     let maxDeviationXL2 = 220;
     
     //Node width and height
@@ -766,11 +768,11 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
             //Render optimal configuration of the graph - finding the ideal column size for each one.
             //First, set a maximum row size and an array to track how many columns are present per L2 successor set
-            let maxRows = 14;
+            let maxRows = 18;
 
             //Alter the maximum number of rows based on the # of L1 successors
             //The deviation from 14 rows for a given number of L1 successors, x, is f(x) = -2(x-5)
-            if (maxFirstOrderSuccessors !== 1) {maxRows = 10 + (-2 * (maxFirstOrderSuccessors - 5));}
+            if (maxFirstOrderSuccessors !== 1) {maxRows = maxRows + (-2 * (maxFirstOrderSuccessors - 5));}
             
             //If dealing with a tri-or-tetra-gram model, subtract the number of rows by the number of L1 successors as they take up room as well.
             if (modelType === "Tri-gram") {maxRows -= maxFirstOrderSuccessors;}
@@ -1324,7 +1326,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     //If this box is a single successor (i.e. a single word), shrink the height dramatically to prevent any overlap between the white and black borders
 
                     if (boxBorderWidth === 0 && modelType === "Bi-gram") {height = 77;}
-                    else {height = numWordsHighest * 25};
+                    else {height = numWordsHighest * maxDeviationYL2};
 
                     //Set the actual L2 bounding box
                     const boundingBox = {
@@ -1423,10 +1425,10 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     )
 
                     //Create a variable to hold the current y position
-                    let currYPos = allFirstOrderPositions[i] - 140;
+                    let currYPos = allFirstOrderPositions[i] - maxDeviationSplitL2;
 
                     //Calculate the increment of currYPos (how much it must change per iteration to evenly space the nodes)
-                    const increment = 140 * 2 / (L2SuccessorNodes.length + 1)
+                    const increment = maxDeviationSplitL2 * 2 / (L2SuccessorNodes.length + 1)
                     currYPos += increment;
 
                     //This is for tri-and-tetra-gram models. Save the previous key such that we can add those nodes to each of the L2 successor nodes that we have split
