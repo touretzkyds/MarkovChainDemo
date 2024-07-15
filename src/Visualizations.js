@@ -1568,7 +1568,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                         //Right bound of the bracket will be midpoint + 1/2 of the longest length times the number of pixels occupied by the characters.
                         //The optimal constant can be found through trial and error; but generally, will be between 8 - 20 (divided by two of course)
 
-                        let newBracketNode = {data : {id : successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET", label : "]"}, position : {x: midpoint + (longestLength * 10), y : allFirstOrderPositions[i]}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                        let newBracketNode = {data : {id : successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET", label : "]"}, position : {x: midpoint + (maxWrap/2), y : allFirstOrderPositions[i]}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
                         graphArr.push(newBracketNode)
                     }
                 }
