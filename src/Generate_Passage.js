@@ -8,9 +8,9 @@ export default function GeneratePassage(){
 
     //Get user ID and other helper variables from context
     //In particular, leverage nodesAdded rather than generatedText to display iteratively and highlight keys in automatic generation mode
-    const {nGramDict, enableButton, currentWord, modelType, setNGramDict,
+    const {nGramDict, enableButton, currentWord, modelType, setNGramDict, panesCleared, setPanesCleared,
            setAutoGraphAllowed, generatedText, setGeneratedText,
-           setManualGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, 
+           setManualGeneratedText, finishedRendering, wordCount, setCurrentWord, wordOptions, setWordOptions, 
            key, setKey, setWordCount, textGenMode, setTextGenMode, 
            enableNextWord, setEnableNextWord, setKeysAdded, 
            generate_text, currentWordCounter, setCurrentWordCounter, unFormatText, 
@@ -35,7 +35,7 @@ export default function GeneratePassage(){
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [display_text])
-    
+
     //Get mode of generation when changed
     const change_mode_generation = () => {
         //Toggle current mode of generation to the opposite
@@ -106,22 +106,6 @@ export default function GeneratePassage(){
         
     }
 
-    // //When the text generation mode is changed and the corresponding dictionary has not yet been built, clear panes 3 and 4.
-    // useEffect(() => {
-
-    //     let n = 3;
-    //     if (modelType === "Bi-gram") {n = 1}
-    //     else if (modelType === "Tri-gram") {n = 2}
-
-    //     if (nGramDict.size !== 0 && nGramDict.keys().next().value.split(" ").length !== n && textGenMode === "manual") {
-    //         console.log("n gram dictL", nGramDict)
-    //         setEnableNextWord(false);
-    //     }
-
-
-    // }, [modelType])
-
-
     //When the Random Choice button is clicked in manual generation mode.
     const random_word_choice = () => {
 
@@ -155,7 +139,7 @@ export default function GeneratePassage(){
             setCurrentWord("")
             display_text = "";
         }
-    }, [enableNextWord, modelType, nGramDict])
+    }, [enableNextWord, modelType])
 
     //Check whether the display pane has been reset 
     useEffect(() => {
@@ -168,10 +152,11 @@ export default function GeneratePassage(){
         //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [generatedText, key, wordOptions, currentWord])
+    }, [generatedText, key, wordOptions, nGramDict, currentWord])
 
     //Once reset, randomly select a start word
     useEffect(() => {
+
         if (reset && textGenMode === "manual") {
             //Randomly select a word to begin with
             const dict_keys = Array.from(nGramDict).map(function (pair) {return pair[0];});
@@ -183,7 +168,7 @@ export default function GeneratePassage(){
         //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [reset, textGenMode, modelType])
+    }, [reset, textGenMode, modelType, nGramDict])
 
     //Each time the currentWord is updated, generate a new selection of words
     useEffect(() => {
@@ -302,22 +287,41 @@ export default function GeneratePassage(){
             <div className = "panel-2-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
                 <div className = "passage-text-and-generation-method" class = "flex-auto flex-col align-left items-left w-6/12">
                     <div className = "generated-text" class = "flex font-bold monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs text-left w-full">[3] Generate From {modelType} Dictionary.</div>              
-                    <div className = "generation-method-selection" class = "flex flex-row items-center justify-center w-fit space-x-2">
-                        <div className = "automatic-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</div>
-                        <label for = "generation-mode-switch" class = "flex items-center bg-neutral-200 cursor-pointer relative monitor:w-15 2xl:w-10 xl:w-8 sm:w-8 monitor:h-5 2xl:h-5 xl:h-4 sm:h-4 rounded-full">
-                            <input type = "checkbox" id = "generation-mode-switch" class = "flex sr-only peer" onChange = {change_mode_generation} checked = {textGenMode !== "automatic"}></input>
-                            <span class = "flex w-2/5 h-4/5 bg-slate-900 absolute rounded-full peer-checked:bg-green-900 peer-checked:right-0 transition-all duration-500"></span>
-                        </label>
-                        <div className = "manual-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</div>
-                        {/* <div className = "auto-select" class = "flex flex-row space-x-2 w-fit">
-                            <input type = "radio" id = "automatic" name = "generation-type" value = "automatic" onChange = {change_mode_generation} checked = {textGenMode === "automatic"} class = "flex" ></input>
-                            <label for = "automatic" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</label>
+                    {!panesCleared ? (
+                        <div className = "generation-method-selection" class = "flex flex-row items-center justify-center w-fit space-x-2">
+                            <div className = "automatic-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</div>
+                            <label for = "generation-mode-switch" class = "flex items-center bg-neutral-200 cursor-pointer relative monitor:w-15 2xl:w-10 xl:w-8 sm:w-8 monitor:h-5 2xl:h-5 xl:h-4 sm:h-4 rounded-full">
+                                <input type = "checkbox" id = "generation-mode-switch" class = "flex sr-only peer" onChange = {change_mode_generation} checked = {textGenMode !== "automatic"}></input>
+                                <span class = "flex w-2/5 h-4/5 bg-slate-900 absolute rounded-full peer-checked:bg-green-900 peer-checked:right-0 transition-all duration-500"></span>
+                            </label>
+                            <div className = "manual-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</div>
+                            {/* <div className = "auto-select" class = "flex flex-row space-x-2 w-fit">
+                                <input type = "radio" id = "automatic" name = "generation-type" value = "automatic" onChange = {change_mode_generation} checked = {textGenMode === "automatic"} class = "flex" ></input>
+                                <label for = "automatic" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</label>
+                            </div>
+                            <div className = "manual-select" class = "flex flex-row space-x-2 w-fit">
+                                <input type = "radio" id = "manual" name = "generation-type" value = "manual" onChange = {change_mode_generation} checked = {textGenMode === "manual"} class = "flex"></input>
+                                <label for = "manual" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</label>
+                            </div> */}
                         </div>
-                        <div className = "manual-select" class = "flex flex-row space-x-2 w-fit">
-                            <input type = "radio" id = "manual" name = "generation-type" value = "manual" onChange = {change_mode_generation} checked = {textGenMode === "manual"} class = "flex"></input>
-                            <label for = "manual" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</label>
-                        </div> */}
-                    </div>
+                    ) : (
+                        <div className = "generation-method-selection" class = "flex flex-row items-center justify-center w-fit space-x-2">
+                            <div className = "automatic-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</div>
+                            <label for = "generation-mode-switch" class = "flex items-center bg-neutral-200 cursor-pointer relative monitor:w-15 2xl:w-10 xl:w-8 sm:w-8 monitor:h-5 2xl:h-5 xl:h-4 sm:h-4 rounded-full">
+                                <input type = "checkbox" id = "generation-mode-switch" class = "flex sr-only peer" checked = {textGenMode !== "automatic"}></input>
+                                <span class = "flex w-2/5 h-4/5 bg-slate-900 absolute rounded-full peer-checked:bg-green-900 peer-checked:right-0 transition-all duration-500"></span>
+                            </label>
+                            <div className = "manual-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</div>
+                            {/* <div className = "auto-select" class = "flex flex-row space-x-2 w-fit">
+                                <input type = "radio" id = "automatic" name = "generation-type" value = "automatic" onChange = {change_mode_generation} checked = {textGenMode === "automatic"} class = "flex" ></input>
+                                <label for = "automatic" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</label>
+                            </div>
+                            <div className = "manual-select" class = "flex flex-row space-x-2 w-fit">
+                                <input type = "radio" id = "manual" name = "generation-type" value = "manual" onChange = {change_mode_generation} checked = {textGenMode === "manual"} class = "flex"></input>
+                                <label for = "manual" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</label>
+                            </div> */}
+                        </div>
+                    )}
                 </div>
                 {textGenMode === "automatic" ? (
                     <div class = "w-0"></div>

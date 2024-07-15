@@ -74,7 +74,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
     //Get variables needed from the shared context
     const {nGramDict, modelType, textGenMode, generatedText, 
            reFormatText, unFormatText, pane2KeyClicked, setPane2KeyClicked, globalStartKey, setGlobalStartKey, manualStartKey, setManualStartKey,
-           setCurrentWord, setKey, setKeysAdded, wordOptions, clearButtonClicked, setClearButtonClicked} = useDictContext();
+           setCurrentWord, setKey, graphData, setGraphData, setKeysAdded, wordOptions, clearButtonClicked, setClearButtonClicked} = useDictContext();
 
     //Store a reference to the cytoscape component so that we can directly refer to and alter it
     let graphRef = useRef(null);
@@ -87,8 +87,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
     const layoutName = "preset";
     const [layoutBuilt, setLayoutBuilt] = useState(false);
 
-    //Declare a state variable to house the graph and keep track of all added nodes
-    const [graphData, setGraphData] = useState([]);
     //Set a non-state version of the same thing - this allows us to directly manipulate the array without worrying about state updates
     let graphArr = [];
 
@@ -99,19 +97,24 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
     //Maximum height of graph away from central axis for both successor layers (vertically and horizontally)
     //For L2 successors, maximum y deviation is auto-calculated and thus does not need to be explicitly defined.
-    let maxDeviationYL1 = -350;
-    let maxDeviationXL1 = 140;
+    let maxDeviationYL1 = -400; //340
+    //Max Deviation YL1 for first-generation boxes (spacing is not necessary)
+    let maxDeviationYL1BoxL1 = -200;
+    let maxDeviationXL1 = 170;
     let maxDeviationYL2 = 25;
-    let maxDeviationXL2 = maxDeviationXL1 + 40;
+    let maxDeviationXL2 = 220;
     
     //Node width and height
     const nodeWidth = 150;
     const nodeHeight = 50;
 
+    //Max length a word can be before text wrapping
+    const maxWrap = nodeWidth + maxDeviationXL2/7
+
     //Jitter parameters
     const jitterX = 20;
     const jitterY = 9;
-
+ 
     //Bounding box width padding parameters (1 times the node width, 2 times the node width, 3 times, etc.)
     const boundingBoxPadding = 0.7;
 
@@ -132,7 +135,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 'text-valign': 'center', // Vertical alignment of label
                 'text-halign': 'center', // Horizontal alignment of label
                 'text-wrap' : 'wrap',
-                'text-max-width' : nodeWidth + 20,
+                'text-max-width' : maxWrap,
                 "color" : "#14532D"
             }
         },
@@ -147,7 +150,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 'target-arrow-color' : 'black',
                 'source-arrow-color' : 'black',
                 "label" : "data(label)",
-                "text-margin-y" : "-20"
+                "text-margin-y" : "-13"
             }
         }
     ]
@@ -363,7 +366,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                 //Add a bracket node to the graph
                 //Create bracket node
-                let newBracketNode = {data : {id : reFormatText(startKey) + "_BRACKET", label : "]"}, position : {x: 0 + 50, y : 0}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                let newBracketNode = {data : {id : reFormatText(startKey) + "_BRACKET", label : "]"}, position : {x: 0 + maxWrap/2, y : 0}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
                 //Add to graph
                 graphArr.push(newBracketNode)
                  
@@ -381,6 +384,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             setGraphData(graphArr);
             return;
         }
+
         let successorsL1 = Array.from(nGramDict.get(startKey));
         successorsL1 = successorsL1.map(function (pair) {return pair[0];})
         
@@ -406,6 +410,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
         //Current x-coordinate of L1 graph
         let xCoordinateL1 = maxDeviationXL1;
+        
         //Y-coord of L1 graph
         let yCoordinateL1 = maxDeviationYL1;
 
@@ -501,7 +506,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     //     rowsInColumn = Math.floor(successorsL1.length % maxFirstOrderRows);
                     // }
 
-                    yCoordinateL1 = 0 - ((rowsInColumn + 1) * (maxDeviationYL2 / 2));
+                    //yCoordinateL1 = 0 - ((rowsInColumn + 1) * (maxDeviationYL2 / 2));
+                    yCoordinateL1 = maxDeviationYL1BoxL1 - (Math.abs(maxDeviationYL1BoxL1) * 2 / (rowsInColumn - 1));
                 }
                 counterL1 = 0;
 
@@ -533,7 +539,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 }
                 
             } else {
-                yCoordinateL1 += (Math.abs(-170) * 2 / (maxColumnNodes + 1));
+                //Make sure that if the number of nodes we have is LESS than the maxColumnNodes, we space those evenly
+                if (successorsL1.length < maxColumnNodes) {maxColumnNodes = successorsL1.length}
+                yCoordinateL1 += (Math.abs(maxDeviationYL1BoxL1 * 2) / (maxColumnNodes - 1));
             }
 
             //Check how many times the successor as already been added
@@ -630,7 +638,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     }
 
                     //Create bracket node and add to graph
-                    let newBracketNode = {data : {id : successor + successorCount + "_BRACKET", label : "]"}, position : {x: xCoordinateL1 + 50, y : yCoordinateL1}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                    let newBracketNode = {data : {id : successor + successorCount + "_BRACKET", label : "]"}, position : {x: xCoordinateL1 + (maxWrap/2), y : yCoordinateL1}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
                     graphArr.push(newBracketNode)
 
                     //Add to array for branch creation
@@ -762,7 +770,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
             //Alter the maximum number of rows based on the # of L1 successors
             //The deviation from 14 rows for a given number of L1 successors, x, is f(x) = -2(x-5)
-            if (maxFirstOrderSuccessors !== 1) {maxRows = 12 + (-2 * (maxFirstOrderSuccessors - 5));}
+            if (maxFirstOrderSuccessors !== 1) {maxRows = 10 + (-2 * (maxFirstOrderSuccessors - 5));}
             
             //If dealing with a tri-or-tetra-gram model, subtract the number of rows by the number of L1 successors as they take up room as well.
             if (modelType === "Tri-gram") {maxRows -= maxFirstOrderSuccessors;}
@@ -1436,6 +1444,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     }
                     else {prevKey = reFormatText(startKey.split(" ")[startKey.split(" ").length - 1] + " " + successorsL1[i])}
 
+                    //Source node - this is a node for bi-gram models and a bracket for tri/tetra-gram models
+                    let sourceNode = successorIDsL0L1[i];
+
                     //Iterate over each L2 successor node
                     for (let x = 0; x < L2SuccessorNodes.length; x++) {
 
@@ -1448,6 +1459,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                         //For tri-and-tetra-gram models, however, add another node (or another two nodes) corresponding to the previous key
                         } else {
 
+                            //Change source node to bracket
+                            sourceNode = bracketNodesL1L2[i];
+
                             //Determine bracket x-position by figuring out the longest word in the previous chain
                             let word1 = successorsL1[i];
                             let words2 = successorsL1L2[i];
@@ -1458,7 +1472,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                             for (let k = 0; k < words2.length; k++) {if (words2[k].length > longestLength) {longestLength = words2[k].length}}
 
                             //As an extension, add a bracket next to the longest length
-                            let newBracketNode = {data : {id : successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET_" + x, label : "]"}, position : {x: midpoint + (longestLength * 10), y : currYPos}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                            let newBracketNode = {data : {id : successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET_" + x, label : "]"}, position : {x: midpoint + maxWrap/2, y : currYPos}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
                             graphArr.push(newBracketNode)
 
                             //Create a new variable to evenly space nodes amongst the given position
@@ -1494,7 +1508,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                         L2SuccessorNodes[x]["data"]["label"] = L2SuccessorNodes[x]["data"]["label"].substring(0, leftBracketIdx - 1);
                         
                         //Create branch between L1 node and this one + push to graph
-                        let newDirectBranch = {data : {source : successorIDsL0L1[i], target : L2SuccessorNodes[x]["data"]["id"], label : prob}, grabbable : false};
+                        let newDirectBranch = {data : {source : sourceNode, target : L2SuccessorNodes[x]["data"]["id"], label : prob}, grabbable : false};
                         graphArr.push(newDirectBranch)
 
                         //Increment current y position

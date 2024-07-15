@@ -11,23 +11,9 @@ import { useDictContext } from "./Context";
 function DisplayDict() {
     //Get variables from context
     const { nGramDict, modelType, setModelType, branchingFactor, 
-            setBranchingFactor, pane2KeyClicked, setPane2KeyClicked, globalStartKey, setGlobalStartKey, 
+            setBranchingFactor, pane2KeyClicked, setPane2KeyClicked, globalStartKey, setGlobalStartKey,
             manualStartKey, setManualStartKey, unFormatText, currentWord, setCurrentWord, setCurrentWordCounter, textGenMode,
             lenDict, setLenDict, reFormatText, branching_factor, setGeneratedText, generate_text, wordCount, wordOptions} = useDictContext();
-
-    //Variable to determine whether pane 2 has finished rendering the dictionary
-    const [finishedRendering, setFinishedRendering]  = useState(false);
-    
-    //Set to true when the component mounts
-    useEffect(() => {
-        setFinishedRendering(true);
-    }, [])
-    
-    //Set to false when the dictionary is re-built - when this happens, set generated text to a blank string as well
-    useEffect(() => {
-        setFinishedRendering(false);
-        //setGeneratedText("");
-    }, [nGramDict])
 
 
     //INFINITE SCROLLING VARIABLES AND FUNCTIONS
@@ -207,7 +193,10 @@ function DisplayDict() {
                     {displayDictElements(nGramDict)}
                 </InfiniteScroll> */}
                 
-                    {Array.from(nGramDict).map(([key, values], index) => (
+                    {Array.from(nGramDict).map(([key, values], index) => {
+
+
+                        return (
                         <div key = {index} class = "">
                             <strong class = "text-green-900 hover:bg-green-200 rounded-md cursor-pointer" onClick = {dictKeyClicked}>{reFormatText(key)}: </strong>
                             {Array.from(values).map(([item, count], index, successorArr) => (
@@ -219,7 +208,8 @@ function DisplayDict() {
                                 </React.Fragment>
                             ))}
                         </div>
-                    ))}
+                        )
+                    })}
 
             </div>
         </div>

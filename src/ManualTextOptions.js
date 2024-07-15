@@ -3,7 +3,7 @@ import { useDictContext } from "./Context";
 
 export default function ManualTextOptions(props){
     //Get dictionary, model type, generated text, and word count
-    const {nGramDict, generatedText, setGeneratedText, 
+    const {nGramDict, generatedText, setGeneratedText, panesCleared,
         modelType, enableButton, reFormatText, unFormatText, wordOptions} = useDictContext();
 
     //Array to store individual words from generated text in pane 3
@@ -26,9 +26,9 @@ export default function ManualTextOptions(props){
                             
                             <button key = {index} onClick = {props.word_chosen} class = "flex w-full shadow-md text-center items-center justify-center rounded-3xl p-2 bg-zinc-50 font-bold text-red-500">
                                 {reFormatText(word)} ({
-                                (modelType === "Bi-gram" && nGramDict.size !== 0 && genSplitText[0] !== "" && nGramDict.keys().next().value.split(" ").length === 1 && nGramDict.get(unFormatText(genSplitText[genSplitText.length - 1])).get(unFormatText(word)).toFixed(2)) ||
-                                (modelType === "Tri-gram" && nGramDict.size !== 0 && genSplitText[0] !== "" && nGramDict.keys().next().value.split(" ").length === 2 && nGramDict.get(unFormatText(genSplitText[genSplitText.length - 2] + " " + genSplitText[genSplitText.length - 1])).get(unFormatText(word)).toFixed(2)) ||    
-                                (modelType === "Tetra-gram" && nGramDict.size !== 0 && genSplitText[0] !== "" && nGramDict.keys().next().value.split(" ").length === 3 && nGramDict.get(unFormatText(genSplitText[genSplitText.length - 3] + " " + genSplitText[genSplitText.length - 2] + " " + genSplitText[genSplitText.length - 1])).get(unFormatText(word)).toFixed(2))
+                                (modelType === "Bi-gram" && !panesCleared && nGramDict.size !== 0 && genSplitText[0] !== "" && nGramDict.keys().next().value.split(" ").length === 1 && nGramDict.get(unFormatText(genSplitText[genSplitText.length - 1])).get(unFormatText(word)).toFixed(2)) ||
+                                (modelType === "Tri-gram" && !panesCleared && nGramDict.size !== 0 && genSplitText[0] !== "" && nGramDict.keys().next().value.split(" ").length === 2 && nGramDict.get(unFormatText(genSplitText[genSplitText.length - 2] + " " + genSplitText[genSplitText.length - 1])).get(unFormatText(word)).toFixed(2)) ||    
+                                (modelType === "Tetra-gram" && !panesCleared && nGramDict.size !== 0 && genSplitText[0] !== "" && nGramDict.keys().next().value.split(" ").length === 3 && nGramDict.get(unFormatText(genSplitText[genSplitText.length - 3] + " " + genSplitText[genSplitText.length - 2] + " " + genSplitText[genSplitText.length - 1])).get(unFormatText(word)).toFixed(2))
                                 })
                             </button>
 
