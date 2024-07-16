@@ -1361,13 +1361,10 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                 //Get the associated probability between the start and L0L1 word
 
-                let L0L1word = unFormatText(successorIDsL0L1[i].replace(/\d+$/, ''));
                 if (modelType === "Bi-gram") {
 
-                    //First, remove all numbers from the right side of the string to extract the L01L1 word
-                    L0L1word = unFormatText(successorIDsL0L1[i].replace(/\d+$/, ''));
                     //Get probability
-                    let prob = nGramDict.get(startKey).get(L0L1word)
+                    let prob = nGramDict.get(startKey).get(successorsL1[i])
                     if (prob !== undefined) {prob = Number(prob).toFixed(2);}
                     newBranchL0L1 = {data : {source : reFormatText(startKey), target : successorIDsL0L1[i], label : prob}, grabbable : false};
                 
