@@ -1,4 +1,4 @@
-import React, {useEffect} from "react";
+import React, {useState, useEffect} from "react";
 import { useDictContext } from "./Context";
 
 //For infinite text generation, if needed. This feature is currently disabled; some pieces of code are commented out as a result.
@@ -11,9 +11,10 @@ import { useDictContext } from "./Context";
 function DisplayDict() {
     //Get variables from context
     const { nGramDict, modelType, setModelType, branchingFactor, 
-            setBranchingFactor, pane2KeyClicked, setPane2KeyClicked, globalStartKey, setGlobalStartKey, 
+            setBranchingFactor, pane2KeyClicked, setPane2KeyClicked, globalStartKey, setGlobalStartKey,
             manualStartKey, setManualStartKey, unFormatText, currentWord, setCurrentWord, setCurrentWordCounter, textGenMode,
-            lenDict, setLenDict, reFormatText, branching_factor, setGeneratedText, generate_text, wordCount} = useDictContext();
+            lenDict, setLenDict, reFormatText, branching_factor, setGeneratedText, generate_text, wordCount, wordOptions} = useDictContext();
+
 
     //INFINITE SCROLLING VARIABLES AND FUNCTIONS
 
@@ -192,19 +193,23 @@ function DisplayDict() {
                     {displayDictElements(nGramDict)}
                 </InfiniteScroll> */}
                 
-                    {Array.from(nGramDict).map(([key, values], index) => (
+                    {Array.from(nGramDict).map(([key, values], index) => {
+
+
+                        return (
                         <div key = {index} class = "">
                             <strong class = "text-green-900 hover:bg-green-200 rounded-md cursor-pointer" onClick = {dictKeyClicked}>{reFormatText(key)}: </strong>
                             {Array.from(values).map(([item, count], index, successorArr) => (
                                 <React.Fragment key={`${values}-${item}`}>
                                     <li className="inline list-none">
-                                        {reFormatText(item)} (<span>{count}</span>)
+                                        {reFormatText(item)} (<span>{count.toFixed(2)}</span>)
                                     </li>
                                     {index < successorArr.length - 1 && <span>, </span>}
                                 </React.Fragment>
                             ))}
                         </div>
-                    ))}
+                        )
+                    })}
 
             </div>
         </div>

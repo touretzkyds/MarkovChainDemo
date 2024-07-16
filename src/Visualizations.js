@@ -1,8 +1,9 @@
-import React, {useState, useEffect} from "react";
+import React, {useState, useEffect, useRef} from "react";
 import CytoscapeComponent from "react-cytoscapejs";
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 import { useDictContext } from "./Context";
+import { render } from "@testing-library/react";
 
 cytoscape.use(dagre);
 
@@ -73,7 +74,10 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
     //Get variables needed from the shared context
     const {nGramDict, modelType, textGenMode, generatedText, 
            reFormatText, unFormatText, pane2KeyClicked, setPane2KeyClicked, globalStartKey, setGlobalStartKey, manualStartKey, setManualStartKey,
-           setCurrentWord, setKey, setKeysAdded, wordOptions, clearButtonClicked, setClearButtonClicked} = useDictContext();
+           setCurrentWord, setKey, graphData, setGraphData, setKeysAdded, wordOptions, clearButtonClicked, setClearButtonClicked} = useDictContext();
+
+    //Store a reference to the cytoscape component so that we can directly refer to and alter it
+    let graphRef = useRef(null);
 
     //State variable to check whether the current display has successfully been reset
     const [isReset, setIsReset] = useState(false);
@@ -83,39 +87,42 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
     const layoutName = "preset";
     const [layoutBuilt, setLayoutBuilt] = useState(false);
 
-    //Declare a state variable to house the graph and keep track of all added nodes
-    const [graphData, setGraphData] = useState([]);
+    //Set a non-state version of the same thing - this allows us to directly manipulate the array without worrying about state updates
+    let graphArr = [];
 
     //Flag to determine whether the manual graph has been rendered for each instance of words
     const [manualRendered, setManualRendered] = useState(false);
-
-    //Set current reference of graph div to null
-    let graphRef = React.useRef(null);
 
     //CONSTANTS FOR PANE FOUR RENDERING (maximum x and y bounds)
 
     //Maximum height of graph away from central axis for both successor layers (vertically and horizontally)
     //For L2 successors, maximum y deviation is auto-calculated and thus does not need to be explicitly defined.
-    let maxDeviationYL1 = -350;
-    let maxDeviationXL1 = 140;
+    let maxDeviationYL1 = -500; //340
+    //Max Deviation YL1 for first-generation boxes (spacing is not necessary)
+    let maxDeviationYL1BoxL1 = -200;
+    let maxDeviationXL1 = 170;
     let maxDeviationYL2 = 25;
-    let maxDeviationXL2 = maxDeviationXL1 + 40;
+    //Control the spread of L2 nodes
+    let maxDeviationSplitL2 = 200;
+    let maxDeviationXL2 = 220;
     
     //Node width and height
     const nodeWidth = 150;
     const nodeHeight = 50;
 
+    //Max length a word can be before text wrapping
+    const maxWrap = nodeWidth + maxDeviationXL2/7
+
     //Jitter parameters
     const jitterX = 20;
     const jitterY = 9;
-
+ 
     //Bounding box width padding parameters (1 times the node width, 2 times the node width, 3 times, etc.)
     const boundingBoxPadding = 0.7;
 
     //Set graph style parameters
     const graphStyle = [
         {
-
             //Style parameters for nodes
             zoomingEnabled: false,
             selector: "node",
@@ -130,7 +137,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 'text-valign': 'center', // Vertical alignment of label
                 'text-halign': 'center', // Horizontal alignment of label
                 'text-wrap' : 'wrap',
-                'text-max-width' : nodeWidth + 20,
+                'text-max-width' : maxWrap,
                 "color" : "#14532D"
             }
         },
@@ -145,7 +152,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 'target-arrow-color' : 'black',
                 'source-arrow-color' : 'black',
                 "label" : "data(label)",
-                "text-margin-y" : "-20"
+                "text-margin-y" : "-13"
             }
         }
     ]
@@ -166,6 +173,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
         //Empty current graph and list of graph data and added keys (the latter stored in context)
         setGraphData([]);
+        graphArr = [];
         setKeysAdded([]);
         //setWordOptions([]);
         setKey("");
@@ -249,7 +257,35 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
         return factors;
     }
 
-    //Function to render a given layer of successors, called upon each iteration at a time
+    // //Function to format the nodes of the graph (for instance, making them ungrabbable)
+    // const formatNodes = () => {
+        
+    //     //Access cytoscape reference if the graph has been rendered
+    //     if (graphRef.current) {
+            
+    //         //Get cytoscape reference
+    //         const cy = graphRef.current._cy;
+    //         console.log("WORKING")
+    //         //Make each node ungrabbable
+    //         console.log("CY NODES:", cy.nodes())
+    //         cy.nodes("").style("color", "black");
+    //         cy.nodes().forEach(node => {
+                
+    //             console.log("MAKING UNGRABBBABLE")
+    //             console.log("NODE GRABBABLE:", node[0]._private.grabbable);
+    //             node.style("color", "orange")
+    //             node[0]._private.grabbable = false;
+    //             console.log("NODE GRABBABLE:", node[0]._private.grabbable);
+    //         })
+
+    //     }
+
+    // }
+
+    // //Each time the graph data changes, format the respective nodes
+    // useEffect(() => {
+    //     formatNodes();
+    // }, [graphData, graphRef.current])
 
     //Function to build graph based on dictionary
     const buildGraph = () => {
@@ -278,35 +314,17 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 if (modelType === "Tri-gram") {n = 2;}
                 else if (modelType === "Tetra-gram") {n = 3;}
                 
-                //Check to see if the generated text is long enough, if not, then use as start key without additional concerns
-                if (true || generatedText.trim(" ").split(" ").length <= n) {
-                    startKey = generatedText.trim(" ").split(" ").slice(-n).join(" ");
-                }
-                //If the generated text is longer, however, the start key will be two n behind (this is temporarily disabled)
-                else {
-                    let endBound = -n;
-                    if (n >= 2) {endBound = -n + 1}
-                    startKey = generatedText.trim(" ").split(" ").slice(-2 * n, endBound).join(" ");
-                }
-                
-                startKey = startKey.trim(" ");
+                startKey = generatedText.trim(" ").split(" ").slice(-n).join(" ").trim(" ");
     
                 if (n === 1 && startKey.trim(" ").split(" ").length >= 2) {
                     startKey = startKey.trim(" ").split(" ")[0]
                 }
-                //Set as current word
-                //setCurrentWord(startKey);
     
                 //Set the manual rendered flag as true
                 setManualRendered(true);
-
-                //Otherwise, pick a word from the dictionary at random, add to graph (if not already present) and added node list
-                //startKey = dictKeys[Math.floor(Math.random() * dictKeys.length)];
         }
 
-
-
-        if (startKey === undefined || startKey === null || startKey === "") {return}
+        if (startKey === undefined || startKey === null || startKey === "") {return;}
 
         if (!startKey.split(" ").includes("undefined")) {
 
@@ -316,8 +334,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             if (modelType === "Bi-gram") {
 
                 //Create node and push
-                newGraphPoint = {data : {id : reFormatText(startKey), label : reFormatText(startKey)}, position : {x:0}};
-                setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+                newGraphPoint = {data : {id : reFormatText(startKey), label : reFormatText(startKey)}, position : { x : 0 }, grabbable : false};
+                graphArr.push(newGraphPoint)
             
             } else {
 
@@ -342,17 +360,17 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     //Create new node - make the style bold if it is the last word on the list
                     
                     if (i === words.length - 1) {style = "bold"}
-                    let newStartNode = {data : {id : words[i] + "_START", label : words[i]}, position : {x : 0, y : startYCoord}, style : {"font-weight" : style}};
+                    let newStartNode = {data : {id : words[i] + "_START_" + i, label : words[i]}, position : {x : 0, y : startYCoord}, style : {"font-weight" : style}, grabbable : false};
                     //Add to the graph
-                    setGraphData(existingGraph => [...existingGraph, newStartNode]);
+                    graphArr.push(newStartNode)
 
                 }
 
                 //Add a bracket node to the graph
                 //Create bracket node
-                let newBracketNode = {data : {id : reFormatText(startKey) + "_BRACKET", label : "]"}, position : {x: 0 + 50, y : 0}, style : {height : 50, width : 25, "font-size" : 90}};
+                let newBracketNode = {data : {id : reFormatText(startKey) + "_BRACKET", label : "]"}, position : {x: 0 + maxWrap/2, y : 0}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
                 //Add to graph
-                setGraphData(existingGraph => [...existingGraph, newBracketNode]);
+                graphArr.push(newBracketNode)
                  
                 //Iterate through each, display
                 //newGraphPoint = {data : {id : reFormatText(startKey), label : reFormatText(startKey)}, position : {x:Math.random()}};
@@ -364,7 +382,11 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
         //Iterate through each successor word
         //If the word has no further successors, create a second node titled "END OF CHAIN"
-        if (nGramDict.get(startKey) === undefined) {return;}
+        if (nGramDict.get(startKey) === undefined) {
+            setGraphData(graphArr);
+            return;
+        }
+
         let successorsL1 = Array.from(nGramDict.get(startKey));
         successorsL1 = successorsL1.map(function (pair) {return pair[0];})
         
@@ -373,7 +395,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
         //Array of all L0L1 successor IDs (needed for the branches going from the root word to the first level)
         let successorIDsL0L1 = [];
-        //Array of all L1L2 successor IDs (for the branches going from L1 to L2)
+        //2D array of all L1L2 successor IDs (for the branches going from L1 to L2)
         let successorIDsL1L2 = [];
 
         //Bracket nodes
@@ -390,6 +412,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
         //Current x-coordinate of L1 graph
         let xCoordinateL1 = maxDeviationXL1;
+        
         //Y-coord of L1 graph
         let yCoordinateL1 = maxDeviationYL1;
 
@@ -430,40 +453,13 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
         //Array to track length of each second order successor tree - needed for determining if a box must be drawn
         let successorL2Lengths = [];
 
-        //Array 
+        //Max number of rows allowed
+        let maxFirstOrderRows = 12;
+        //Maximum allowed column size for separating a column into individual nodes
+        let maxNodeSplitSize = 4;
 
-        // //If not rendering second-order successors, set a max row height and optimize width
-        // if (!renderSecondOrderSuccessors) {
-
-        //     let maxFirstOrderRows = 14;
-        //     let counter = 0;
-        //     let columnCounter = 0;
-
-        //     for (let i = 0; i < successorsL1.length; i++) {
-                
-        //         //Get value
-        //         let unformattedSuccessor = successorsL1[i];
-        //         let successor = reFormatText(unformattedSuccessor);
-
-        //         if (counter % maxFirstOrderRows === 0 && counter !== 0) {
-        //             xCoordinateL1 += maxDeviationXL2;
-        //             let rowsInColumn = maxFirstOrderRows;
-
-        //             if (Math.floor(successorsL1.length / maxFirstOrderRows) === columnCounter + 1) {
-        //                 rowsInColumn = Math.floor(successorsL1.length % maxFirstOrderRows);
-        //             }
-
-        //             yCoordinateL1 = 0 - ((rowsInColumn + 1) * (maxDeviationYL2 / 2));
-        //             counter = 0;
-        //             columnCounter++;
-        //         }
-
-        //     }
-    
-        // }
-
-        let maxFirstOrderRows = 14;
         let limit = 0;
+
         if (renderSecondOrderSuccessors ||  modelType !== "Bi-gram") {
             limit = 5;
             maxFirstOrderRows = 5;
@@ -512,7 +508,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     //     rowsInColumn = Math.floor(successorsL1.length % maxFirstOrderRows);
                     // }
 
-                    yCoordinateL1 = 0 - ((rowsInColumn + 1) * (maxDeviationYL2 / 2));
+                    //yCoordinateL1 = 0 - ((rowsInColumn + 1) * (maxDeviationYL2 / 2));
+                    yCoordinateL1 = maxDeviationYL1BoxL1 - (Math.abs(maxDeviationYL1BoxL1) * 2 / (rowsInColumn - 1));
                 }
                 counterL1 = 0;
 
@@ -544,7 +541,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 }
                 
             } else {
-                yCoordinateL1 += (Math.abs(-170) * 2 / (maxColumnNodes + 1));
+                //Make sure that if the number of nodes we have is LESS than the maxColumnNodes, we space those evenly
+                if (successorsL1.length < maxColumnNodes) {maxColumnNodes = successorsL1.length}
+                yCoordinateL1 += (Math.abs(maxDeviationYL1BoxL1 * 2) / (maxColumnNodes - 1));
             }
 
             //Check how many times the successor as already been added
@@ -557,20 +556,16 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             
             //Add jitter if second-order successors are not being rendered
             //If we are dealing with a bi-or-tri-gram model, arrange each word vertically and store.
-            //console.log("SECOND ORDER SUCCESSORS BEING RENDERED:", renderSecondOrderSuccessors);
             if (!renderSecondOrderSuccessors) { //&& maxFirstOrderSuccessors > 1
 
                 if (modelType === "Bi-gram") {
 
                     //Jittered version is commented out; feel free to uncomment it if you'd like to add it back in (and comment the first line instead)
                     //Include probability of occurrence in the label
-                    let prob = nGramDict.get(startKey).get(unformattedSuccessor);
-                    let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel + " (" + prob + ")"}, position : {x: xCoordinateL1, y : yCoordinateL1}};
-                    //let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x: xCoordinateL1 + Math.floor(Math.random() * (jitterX * 2 + 1) - jitterX), y : yCoordinateL1 + Math.floor(Math.random() * (jitterY * 2 + 1) - jitterY)}};
-                    
-                    //
-                    
-                    setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+                    let prob = nGramDict.get(startKey).get(unformattedSuccessor).toFixed(2);
+                    let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel + " (" + prob + ")"}, position : {x: xCoordinateL1, y : yCoordinateL1}, grabbable : false};
+
+                    graphArr.push(newGraphPoint)
 
                 } else {
 
@@ -583,38 +578,16 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     let maxTriTetraYDeviation = 0;
                     let triTetraYCoord = yCoordinateL1 - maxTriTetraYDeviation;
 
-                    //Variable to determine number of required partitions
-                    let n = 0;
-                    if (modelType === "Tri-gram") {n = 2;}
-                    else {n = 3;}
-
-                    //Arrange y coordinate accordingly
-                    //triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
-
-                    //Create a node from the first word
-                    let newFirstWordPoint = {data : {id : successor + successorCount + "_WORD_" + 0, label : words[0]}, position : {x: xCoordinateL1, y : triTetraYCoord}};
-
-                    //Update y-coordinate
-                    //triTetraYCoord += (Math.abs(maxTriTetraYDeviation) * 2 / (n + 1));
-
                     //Create a node from the last two words, immediately below the first
                     //For a tri-gram model, add the next word. For a tetra-gram model, add the next two words.
                     let newEndWordsPoint;
                     if (modelType === "Tri-gram") {
-                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " (" + nGramDict.get(unFormatText(startKey)).get(unFormatText(words[1])) + ")"}, position : {x: xCoordinateL1, y : triTetraYCoord}, style : {"font-weight" : "bold"}};
+                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " (" + nGramDict.get(unFormatText(startKey)).get(unFormatText(words[1])).toFixed(2) + ")"}, position : {x: xCoordinateL1, y : triTetraYCoord}, style : {"font-weight" : "bold"}, grabbable : false};
                     } else {
-                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " " + words[2]}, position : {x: xCoordinateL1, y : triTetraYCoord + 15}, style : {"font-weight" : "bold"}};
+                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[2] + " (" + nGramDict.get(unFormatText(startKey)).get(unFormatText(words[2])).toFixed(2) + ")"}, position : {x: xCoordinateL1, y : triTetraYCoord + 15}, style : {"font-weight" : "bold"}, grabbable : false};
                     }
 
-                    //Add as the end point for the L0L1 branch and the start of the L1L2 branch
-                    //successorIDsL1L2.push(successor + successorCount + "_WORD_" + 1);
-
-                    //No brackets should be added to L1 nodes if no L2 successors are present.
-
-                    //Add both branches and the bracket node to the graph
-                    //setGraphData(existingGraph => [...existingGraph, newFirstWordPoint]);
-                    setGraphData(existingGraph => [...existingGraph, newEndWordsPoint]);
-
+                    graphArr.push(newEndWordsPoint)
 
                 }
 
@@ -622,8 +595,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                 if (modelType === "Bi-gram") {
 
-                    let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x : xCoordinateL1, y: yCoordinateL1}};
-                    setGraphData(existingGraph => [...existingGraph, newGraphPoint]);
+                    let newGraphPoint = {data : {id : successor + successorCount, label : nodeLabel}, position : {x : xCoordinateL1, y: yCoordinateL1}, grabbable : false};
+                    graphArr.push(newGraphPoint)
                 
                 } else {
                     
@@ -654,10 +627,10 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                         if (i === words.length - 1) {style = "bold";}
 
                         //Create node
-                        let newTriTetraPoint = {data : {id : successor + successorCount + "_WORD_" + i, label : words[i]}, position : {x: xCoordinateL1, y : triTetraYCoord}, style : {"font-weight" : style}};
+                        let newTriTetraPoint = {data : {id : successor + successorCount + "_WORD_" + i, label : words[i]}, position : {x: xCoordinateL1, y : triTetraYCoord}, style : {"font-weight" : style}, grabbable : false};
 
                         //Add to the graph
-                        setGraphData(existingGraph => [...existingGraph, newTriTetraPoint])
+                        graphArr.push(newTriTetraPoint)
                         
                         //If this is the final word, add to the successorIDsL0L1 list
                         if (i === words.length - 1) {
@@ -667,8 +640,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     }
 
                     //Create bracket node and add to graph
-                    let newBracketNode = {data : {id : successor + successorCount + "_BRACKET", label : "]"}, position : {x: xCoordinateL1 + 50, y : yCoordinateL1}, style : {height : 50, width : 25, "font-size" : 90}};
-                    setGraphData(existingGraph => [...existingGraph, newBracketNode]);
+                    let newBracketNode = {data : {id : successor + successorCount + "_BRACKET", label : "]"}, position : {x: xCoordinateL1 + (maxWrap/2), y : yCoordinateL1}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                    graphArr.push(newBracketNode)
 
                     //Add to array for branch creation
                     bracketNodesL1L2.push(successor + successorCount + "_BRACKET");
@@ -701,7 +674,37 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
             //Second order successors
             //Again, if they don't exist, create an END OF CHAIN node, draw a branch, and return
-            if (nGramDict.get(secondOrderKey) === undefined) {return;}
+            if (nGramDict.get(secondOrderKey) === undefined) {
+                
+                //For the bi-gram model, the source will be the start key. For tri-and-tetra-gram models, the source will be the bracket.
+                let source;
+                //The bi-gram target is the successor + 0, while the tri-and-tetra-gram targets are successor + 0 + _WORD_n (n = 1 for tri-grams and n = 2 for tetra-grams)
+                let target;
+
+                if (modelType === "Bi-gram") {
+                    source = reFormatText(startKey);
+                    target = successor + "0";
+                }
+                else {
+                    source = reFormatText(startKey) + "_BRACKET";
+                    if (modelType === "Tri-gram") {target = successor + "0" + "_WORD_1"}
+                    else {target = successor + "0" + "_WORD_2";}
+                }
+
+                //Get probability
+                let prob = nGramDict.get(unFormatText(startKey)).get(unFormatText(successor));
+                if (prob !== undefined) {prob = prob.toFixed(2);}
+
+                let newBranchL1 = {data : {source : source, target : target, label : prob}, grabbable : false};
+                graphArr.push(newBranchL1);
+
+                setGraphData(graphArr);
+
+                //Return only if there is only ONE first-order successor - if not, continue
+                if (maxFirstOrderSuccessors <= 1) {return;}
+                else {continue;}
+            }
+
             let successorsL2 = Array.from(nGramDict.get(secondOrderKey));
 
             //Get second successor group
@@ -765,12 +768,15 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
             //Render optimal configuration of the graph - finding the ideal column size for each one.
             //First, set a maximum row size and an array to track how many columns are present per L2 successor set
-            let maxRows = 14;
+            let maxRows = 18;
 
             //Alter the maximum number of rows based on the # of L1 successors
             //The deviation from 14 rows for a given number of L1 successors, x, is f(x) = -2(x-5)
-            if (maxFirstOrderSuccessors !== 1) {maxRows = 12 + (-2 * (maxFirstOrderSuccessors - 5));}
-
+            if (maxFirstOrderSuccessors !== 1) {maxRows = maxRows + (-2 * (maxFirstOrderSuccessors - 5));}
+            
+            //If dealing with a tri-or-tetra-gram model, subtract the number of rows by the number of L1 successors as they take up room as well.
+            if (modelType === "Tri-gram") {maxRows -= maxFirstOrderSuccessors;}
+            else if (modelType === "Tetra-gram") {maxRows  -= maxFirstOrderSuccessors - 2;}
             let totalL2Columns = {};
             //For keeping track of what the current number of rows are
             let currRows = 0;
@@ -782,7 +788,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                 //Get the length
 
-                //console.log("INTENDED VALUE:", successorL2Lengths[i] / columnSizes[i])
                 totalL2Columns[i] = Math.floor(successorL2Lengths[i] / columnSizes[i]);
                 //If a remainder is present, add one
                 if (successorL2Lengths[i] % columnSizes[i] !== 0) {totalL2Columns[i]++;}
@@ -793,7 +798,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 
             }
 
-            //console.log("TOTAL L2 COLUMNS:", totalL2Columns);
             //While the number of specified columns hasn't increased, pick the largest L2 successor chain and reduce accordingly
             
             let highestIdx = 0;
@@ -836,8 +840,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 //Store top two highest values
                 highestIdx = Number(sortedL2Columns[0]);
                 secondHighestIdx = Number(sortedL2Columns[1]);
-
-                //console.log("SUCCESSOR L2 AT HIGHEST IDX:", totalL2Columns[highestIdx])
 
                 //If only one set of second-order successors is present, set the height to the maximum number of rows
                 //But, if there is not more than one successor and the remainder is less than half of the given row size, increase the row size and repeat
@@ -977,11 +979,23 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
         
         }
 
+        //Iterate over all column sizes - if we have a tri-or-tetra-gram model and the column size is less than one DESPITE there only being one successor, change this.
+        if (modelType !== "Bi-gram") {
+            for (let x  = 0; x < columnSizes.length; x++) {
+            
+                if (!moreThanOneSuccessor[x] && ((modelType === "Tri-gram" && columnSizes[x] === 1) || (modelType === "Tetra-gram" && columnSizes[x] === 2))) {
+
+                    if (modelType === "Tri-gram") {columnSizes[x] = 2;}
+                    else {columnSizes[x] = 3;}
+
+                }
+            }
+        }
+
         //Now, that all of the positions have been determined render all second-order successors.
         for (let i = 0; i < maxFirstOrderSuccessors; i++) {
 
             let unformattedSuccessor = successorsL1[i];
-            let successor = reFormatText(unformattedSuccessor);
 
             //Row and column counters
             let counterL2 = 0;
@@ -999,7 +1013,8 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             //Tetra-gram key: last two words + current word
             else if (modelType === "Tetra-gram") {secondOrderKey = startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor}
 
-            //Second order successors
+            //Second order successors - exclude those that do not have second order successors
+            if (nGramDict.get(secondOrderKey) === undefined) {continue;}
             let successorsL2 = Array.from(nGramDict.get(secondOrderKey));
 
             //Get second successor group
@@ -1033,7 +1048,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 }
                 moreThanOneSuccessor[i] = true;
             }
-            // console.log("INITIAL MORE THAN ONE SUCCESSOR ASSIGNMENT:", moreThanOneSuccessor[i]);
 
             //L2 Successor Length (store in array as well)
             let l2SuccessorLength = successorsL2.length;
@@ -1041,6 +1055,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
         
             //Store successors in 2D array for box ID creation
             successorsL1L2.push([]);
+            successorIDsL1L2.push([]);
 
             //Coordinates
             let xCoordinateL2 = maxDeviationXL2 * 3;
@@ -1113,38 +1128,45 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 if (modelType === "Bi-gram") {
                     prob = nGramDict.get(unformattedSuccessor).get(unFormatText(successorL2));
                 } else if (modelType === "Tri-gram") {
-                    prob = nGramDict.get(startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor).get(successorL2);
+                    let key = unFormatText(startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor)
+                    prob = nGramDict.get(key).get(unFormatText(successorL2));
                 } else {
-                    prob = nGramDict.get(startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor).get(successorL2);
+                    prob = nGramDict.get(unFormatText(startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor)).get(unFormatText(successorL2));
                 }
+
+                if (prob !== undefined) {prob = prob.toFixed(2)}
                 
                 if (modelType === "Bi-gram") {
                     if (originalSuccessorL2length === 1) {
-                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}};
+                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}, grabbable : false};
                     } else {
-                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2 + " (" + prob + ")"}, position : {x: xCoordinateL2, y : yCoordinateL2}};
+                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2 + " (" + prob + ")"}, position : {x: xCoordinateL2, y : yCoordinateL2}, grabbable : false};
                     }
                 } else {
                     //If the probability is undefined (meaning it is not the final word in the sequence; not a successor word), simply generate the node as is. Otherwise, display the probability
                     if (prob === undefined || (modelType === "Tri-gram" && originalSuccessorL2length === 1) || (modelType === "Tetra-gram" && originalSuccessorL2length === 1)) {
-                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}, style : {"font-weight" : style}};
+                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2}, position : {x: xCoordinateL2, y : yCoordinateL2}, style : {"font-weight" : style}, grabbable : false};
                     } else {
-                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2 + " (" + prob + ")"}, position : {x: xCoordinateL2, y : yCoordinateL2}, style : {"font-weight" : style}};
+                        newGraphPointL2 = {data : {id : successorL2 + successorCountL2, label : successorL2 + " (" + prob + ")"}, position : {x: xCoordinateL2, y : yCoordinateL2}, style : {"font-weight" : style}, grabbable : false};
                     }
                 }
                 
-                setGraphData(existingGraph => [...existingGraph, newGraphPointL2]);
+                graphArr.push(newGraphPointL2)
                 allAddedNodes.push(successorL2);
                 counterL2++;
 
+                //Push the ID of each L2 successor into the ID array
+                successorIDsL1L2[i].push(successorL2 + successorCountL2);
+
                 //If there is only one successor (keep in mind that the final words of the previous key have been added to successorsL2.length), add the final word to successorIDsL1L2 array
-                if (!moreThanOneSuccessor[i] && j === successorsL2.length - 1) {
-                    successorIDsL1L2.push(successorL2 + successorCountL2);
-                //Otherwise, push an empty string (blank)
-                } else if (moreThanOneSuccessor[i] && j === successorsL2.length - 1){successorIDsL1L2.push("");}
+                // if (!moreThanOneSuccessor[i] && j === successorsL2.length - 1) {
+                //     successorIDsL1L2.push(successorL2 + successorCountL2);
+                // //Otherwise, push an empty string (blank)
+                // } else if (moreThanOneSuccessor[i] && j === successorsL2.length - 1){successorIDsL1L2.push("");}
                 
 
             }
+
         }
         
         //If not rendering second order successors, generate a box around the existing graph elements, not including the start word
@@ -1157,6 +1179,9 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             //Find width and midpoint
             let width = rightPos - leftPos
             let midpoint = (rightPos + leftPos) / 2;
+
+            let boxBorderWidth = 3;
+            if (modelType === "Bi-gram" && successorIDsL0L1.length <= Math.min(maxFirstOrderRows, maxNodeSplitSize)) {boxBorderWidth = 0;}
 
             let height = 0;
             if (!renderSecondOrderSuccessors && modelType !== "Bi-gram") {
@@ -1173,23 +1198,12 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             } else {
                 height = Math.abs(maxDeviationYL1) * 1.1;
             }
-            // if (modelType === "Bi-gram") {
-
-            //     if (successorsL1.length < maxFirstOrderRows) {height = successorsL1.length * 30}
-            //     else {height = maxFirstOrderRows * 30;}
-
-            // } else {
-
-            //     if (successorsL1.length < maxFirstOrderRows) {height = Math.abs(successorsL1.length * maxDeviationYL1 * 0.3)}
-            //     else {height = Math.abs(maxFirstOrderRows * maxDeviationYL1 * 0.3);}
-
-            // }
-
 
             //Define bounding box
             const boundingBox = {
                 "group" : "nodes",
                 data : {id : "BOX_L1", label : ""},
+                grabbable : false,
                 position : {
                     x : midpoint,
                     y: 0,
@@ -1200,38 +1214,59 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     shape : "roundrectangle",
                     'background-color' : "F5F5F5",
                     "background-opacity" : 100,
-                    "border-width" : 3,
+                    "border-width" : boxBorderWidth,
                     "border-color" : "black",
                 }
             }
 
             //Add box to graph
-            setGraphData(existingGraph => [...existingGraph, boundingBox])
+            graphArr.push(boundingBox);
 
             //Add branches - include "BRACKET" tag if a tri-or-tetra-gram model
             let newBranchL1;
+
+            //If only one column is present, split into individual nodes (only for Bi-gram models)
             if (modelType === "Bi-gram") {
-                newBranchL1 = {data : {source : reFormatText(startKey), target : "BOX_L1", label : ""}};
+                if (successorIDsL0L1.length <= Math.min(maxFirstOrderRows, maxNodeSplitSize)) {
+                    
+                    //Iterate through each node and draw a branch
+                    //Iterate over all L2 IDs
+                    for (let x = 0; x < successorIDsL0L1.length; x++) {
+
+                        //Create branch
+                        let newDirectBranch = {data : {source : reFormatText(startKey), target : successorIDsL0L1[x], label : ""}, style : {"control-point-distance" : "-100px", "control-point-weight" : 0.25}, grabbable : false};
+
+                        //Push to graph
+                        graphArr.push(newDirectBranch)
+                        
+                    }
+
+                } else {
+                    newBranchL1 = {data : {source : reFormatText(startKey), target : "BOX_L1", label : ""}, grabbable : false};
+                }
             } else {
-                newBranchL1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : "BOX_L1", label : ""}};
+                newBranchL1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : "BOX_L1", label : ""}, grabbable : false};
             }
             
-            setGraphData(existingGraph => [...existingGraph, newBranchL1]);
+            if (newBranchL1 !== undefined) {graphArr.push(newBranchL1);}
 
             //If this is a tri-or-tetra gram model, add the last word of the start key to the top of the box along with a bracket
             if (modelType !== "Bi-gram") {
 
                 //Get last word of the start key
-                const topWord = startKey.split(" ")[startKey.split(" ").length - 1];
+                let topWord;
+                if (modelType === "Tri-gram") {topWord = reFormatText(startKey.split(" ")[startKey.split(" ").length - 1]);}
+                else {topWord = reFormatText(startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1]);}
+                
 
                 //Create top word node
-                let newTopNode = {data : {id : topWord + "_TOP_PHRASE", label : topWord}, position : {x: midpoint, y : -height/2 - 25}};
+                let newTopNode = {data : {id : topWord + "_TOP_PHRASE", label : topWord}, position : {x: midpoint, y : -height/2 - 25}, grabbable : false};
                 //Create bracket node
-                let newBracketNode = {data : {id : topWord + "_BRACKET", label : "]"}, position : {x: midpoint + ((rightPos - leftPos))/2 + 25 , y : - (height/2)}, style : {height : 50, width : 25, "font-size" : 90}};
+                let newBracketNode = {data : {id : topWord + "_BRACKET", label : "]"}, position : {x: midpoint + ((rightPos - leftPos))/2 + 25 , y : - (height/2)}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
 
                 //Add nodes to graph
-                setGraphData(existingGraph => [...existingGraph, newTopNode]);
-                setGraphData(existingGraph => [...existingGraph, newBracketNode]);
+                graphArr.push(newTopNode)
+                graphArr.push(newBracketNode)
                 
             }
         
@@ -1246,9 +1281,16 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             //Iterate through each L1 successor
             for (let i = 0; i < maxFirstOrderSuccessors; i++) {
 
+                //Skip if this is a dead-end successor
+                if ((modelType === "Bi-gram" && nGramDict.get(unFormatText(successorsL1[i])) === undefined) ||
+                    (modelType === "Tri-gram" && nGramDict.get(unFormatText(startKey.split(" ")[startKey.split(" ").length - 1] + " " + successorsL1[i])) === undefined) ||
+                    (modelType === "Tetra-gram" && nGramDict.get(unFormatText(startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + successorsL1[i])) === undefined)
+                ) {continue;}
+
                 //Verify that the length of the second order successors is greater than one; if not, make the box invisible
-                let box_color = "black"
-                if (successorL2Lengths[i] < 2) {box_color = "white";}
+                let boxBorderWidth = 3;
+                if (successorL2Lengths[i] < 2 || successorIDsL1L2[i].length <= Math.min(columnSizes[i], maxNodeSplitSize)) {boxBorderWidth = 0;}
+
 
                 //Define positions of left and right boxes
                 //Add boundingBoxPadding * the node width to ensure the box goes around the words
@@ -1263,45 +1305,6 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                 //Create an outerLeftPos variable
                 let outerLeftPos = 3 * maxDeviationXL2 - (boundingBoxPadding * nodeWidth);
-
-                //Box colour is set to white if not 
-                
-                // if (modelType !== "Bi-gram") {
-
-                //     //Calculate outer left bound for the outer box
-                //     outerLeftPos = 3 * maxDeviationXL2 - (boundingBoxPadding * nodeWidth);
-
-                //     const innerBoxDist = Math.abs(rightPos - leftPos);
-                //     const innerMidpoint = (rightPos + leftPos) / 2;
-
-                //     //Create the inner box
-                //     //Set the actual L2 bounding box
-                //     const innerBoundingBox = {
-                //         "group" : "nodes",
-                //         data : {id : "BOX_L2_INNER_" + i, label : ""},
-                //         position : {
-                //             x : innerMidpoint,//(maxWidths[i] - (3 * maxDeviationXL2))/2 + (3 * maxDeviationXL2),//(((100 + maxWidths[i]) - (3 * maxDeviationXL2)) / 2) + 3 * maxDeviationXL1,
-                //             y: allFirstOrderPositions[i],
-                //         },
-                //         style : {
-                //             width : innerBoxDist - 50 + "px",//(maxWidths[i] - (3 * maxDeviationXL2)) + ((maxWidths[i] - (3 * maxDeviationXL2)) / 2),//(maxWidths[i] + 50) - ((3 * maxDeviationXL2) - 50),//(100 * (L2ColumnsPerRow[i] + 1)) + (maxDeviationXL2 * (L2ColumnsPerRow[i])),
-                //             height : (columnSizes[i] + 1) * 40,//(columnSizes + 1) * 25 + 20,
-                //             shape : "roundrectangle",
-                //             'background-color' : "white",
-                //             "background-opacity" : 0,
-                //             "border-width" : 3,
-                //             "border-color" : box_color,
-                //             "z-index" : 9999
-                //         }
-                //     }
-
-                //     //Add box to graph
-                //     setGraphData(existingGraph => [...existingGraph, innerBoundingBox])
-
-                //     //Set box colour to white if the model is not a bi-gram one
-                //     box_color = "white";
-
-                // }
 
                 //Find distance between left and right bounding boxes
                 const boxDist = Math.abs(rightPos - outerLeftPos);
@@ -1322,13 +1325,14 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
 
                     //If this box is a single successor (i.e. a single word), shrink the height dramatically to prevent any overlap between the white and black borders
 
-                    if (box_color === "white" && modelType === "Bi-gram") {height = 77;}
-                    else {height = numWordsHighest * 25};
+                    if (boxBorderWidth === 0 && modelType === "Bi-gram") {height = 77;}
+                    else {height = numWordsHighest * maxDeviationYL2};
 
                     //Set the actual L2 bounding box
                     const boundingBox = {
                         "group" : "nodes",
                         data : {id : "BOX_L2_" + i, label : ""},
+                        grabbable : false,
                         position : {
                             x : midpoint,//(maxWidths[i] - (3 * maxDeviationXL2))/2 + (3 * maxDeviationXL2),//(((100 + maxWidths[i]) - (3 * maxDeviationXL2)) / 2) + 3 * maxDeviationXL1,
                             y: allFirstOrderPositions[i],
@@ -1339,13 +1343,13 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                             shape : "roundrectangle",
                             'background-color' : "white",
                             "background-opacity" : 0,
-                            "border-width" : 3,
-                            "border-color" : box_color,
+                            "border-width" : boxBorderWidth,
+                            "border-color" : "black",
                         }
                     }
 
                     //Add box to graph
-                    setGraphData(existingGraph => [...existingGraph, boundingBox])
+                    graphArr.push(boundingBox)
             
                 }
 
@@ -1363,66 +1367,194 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                     //First, remove all numbers from the right side of the string to extract the L01L1 word
                     L0L1word = unFormatText(successorIDsL0L1[i].replace(/\d+$/, ''));
                     //Get probability
-                    let prob = nGramDict.get(startKey).get(L0L1word);
-                    newBranchL0L1 = {data : {source : reFormatText(startKey), target : successorIDsL0L1[i], label : prob}};
+                    let prob = nGramDict.get(startKey).get(L0L1word)
+                    if (prob !== undefined) {prob = Number(prob).toFixed(2);}
+                    newBranchL0L1 = {data : {source : reFormatText(startKey), target : successorIDsL0L1[i], label : prob}, grabbable : false};
                 
                 } else if (modelType === "Tri-gram") {
 
                     let prob = nGramDict.get(startKey).get(successorsL1[i]);
-                    newBranchL0L1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : successorIDsL0L1[i], label : prob}};
+                    if (prob !== undefined) {prob = Number(prob).toFixed(2);}
+                    newBranchL0L1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : successorIDsL0L1[i], label : prob}, grabbable : false};
                 
                 } else {
 
                     let prob = nGramDict.get(startKey).get(successorsL1[i]);
-                    newBranchL0L1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : successorIDsL0L1[i], label : prob}};
+                    if (prob !== undefined) {prob = Number(prob).toFixed(2);}
+                    newBranchL0L1 = {data : {source : reFormatText(startKey) + "_BRACKET", target : successorIDsL0L1[i], label : prob}, grabbable : false};
                 
                 }
                 
-                setGraphData(existingGraph => [...existingGraph, newBranchL0L1]);
+                graphArr.push(newBranchL0L1)
 
                 //From the first level to the second. For bi-gram models, this is the same word.
                 //For tri-and-tetra gram models, use the successorIDsL1L2 array (as we want the source of the branch to be the final word for a given key)
                 let newBranchL1L2;
+                //Change sources and targets depending on model type
+                let sourceNode, targetNode = "";
 
-                if (modelType === "Bi-gram") {
-                    if (successorL2Lengths[i] > 1) {
-                        newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : ""}};
+                //Handle the cases where there is 1, [2, maxNodeSplitSize], and (maxNodeSplitSize, inf) L2 nodes for all graph types.
+
+                //Flag to determine whether to render a single bracket in the center at the end (this is false if we render brackets after splitting nodes)
+                let renderBracket = true;
+
+                //A single node/successor cluster
+                if (successorIDsL1L2[i].length === 1 || !moreThanOneSuccessor[i]) {
+                    
+                    if (modelType === "Bi-gram") {
+                        sourceNode = successorIDsL0L1[i];
+                        targetNode = "BOX_L2_" + i;
                     } else {
-                        newBranchL1L2 = {data : {source : successorIDsL0L1[i], target : "BOX_L2_" + i, label : "1"}};
+                        sourceNode = bracketNodesL1L2[i];
+                        targetNode = successorIDsL1L2[i][successorIDsL1L2[i].length - 1]
                     }
                     
-                } else {
-
-                    //If there is only one L2 successor, point directly to the final word.
-                    if (!moreThanOneSuccessor[i]) {
-                        newBranchL1L2 = {data : {source : bracketNodesL1L2[i], target : successorIDsL1L2[i], label : "1"}};
-                    //Otherwise, point to the box.
-                    } else {
-                        newBranchL1L2 = {data : {source : bracketNodesL1L2[i], target : "BOX_L2_" + i, label :  ""}};
-                    }
-                }
+                    //Set branch
+                    newBranchL1L2 = {data : {source : sourceNode, target : targetNode, label : "1.00"}, grabbable : false};
                 
-                setGraphData(existingGraph => [...existingGraph, newBranchL1L2]);
+                //When we have multiple L2 successors but can split them into multiple nodes (the box is not necessary)
+                //If there is only ONE column of words, remove the box and split each word into an individual node with a branch connected to it
+                } else if (successorIDsL1L2[i].length <= Math.min(columnSizes[i], maxNodeSplitSize)) {
 
+                    //Don't render bracket at the end (being rendered in this logic itself)
+                    renderBracket = false;
+
+                    //Additionally, re-space all of the L2 nodes for this given L1 successor to take up the maximum amount of space possible    
+                    let L2SuccessorNodes = graphArr.filter((data_entry, data_index) =>
+                        successorIDsL1L2[i].includes(data_entry["data"]["id"])
+                    )
+
+                    //Create a variable to hold the current y position
+                    let currYPos = allFirstOrderPositions[i] - maxDeviationSplitL2;
+
+                    //Calculate the increment of currYPos (how much it must change per iteration to evenly space the nodes)
+                    const increment = maxDeviationSplitL2 * 2 / (L2SuccessorNodes.length + 1)
+                    currYPos += increment;
+
+                    //This is for tri-and-tetra-gram models. Save the previous key such that we can add those nodes to each of the L2 successor nodes that we have split
+
+                    //Save x position
+                    const xPos = L2SuccessorNodes[0]["position"]["x"]
+
+                    //Store previous key and number of partitions - the latter will either be 3 or 2
+                    let prevKey = "";
+                    let nPartitions = 3;
+                    
+                    if (modelType === "Tri-gram") {
+                        prevKey = reFormatText(successorsL1[i]);
+                        nPartitions = 2;
+                    }
+                    else {prevKey = reFormatText(startKey.split(" ")[startKey.split(" ").length - 1] + " " + successorsL1[i])}
+
+                    //Source node - this is a node for bi-gram models and a bracket for tri/tetra-gram models
+                    let sourceNode = successorIDsL0L1[i];
+
+                    //Iterate over each L2 successor node
+                    for (let x = 0; x < L2SuccessorNodes.length; x++) {
+
+                        //If this is a bi-gram model, simply set the position
+                        if (modelType === "Bi-gram") {
+
+                            //Set y-position
+                            L2SuccessorNodes[x]["position"]["y"] = currYPos;
+                        
+                        //For tri-and-tetra-gram models, however, add another node (or another two nodes) corresponding to the previous key
+                        } else {
+
+                            //Change source node to bracket
+                            sourceNode = bracketNodesL1L2[i];
+
+                            //Determine bracket x-position by figuring out the longest word in the previous chain
+                            let word1 = successorsL1[i];
+                            let words2 = successorsL1L2[i];
+                            words2.push(word1);
+
+                            //Find length of longest word
+                            let longestLength = 0;
+                            for (let k = 0; k < words2.length; k++) {if (words2[k].length > longestLength) {longestLength = words2[k].length}}
+
+                            //As an extension, add a bracket next to the longest length
+                            let newBracketNode = {data : {id : successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET_" + x, label : "]"}, position : {x: midpoint + maxWrap/2, y : currYPos}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                            graphArr.push(newBracketNode)
+
+                            //Create a new variable to evenly space nodes amongst the given position
+                            let embeddedYPos = currYPos - 45;
+                            //Increment
+                            const embeddedIncrement = 45 * 2 / (nPartitions + 1)
+                            embeddedYPos += embeddedIncrement
+
+                            //Iterate over previous key nodes
+                            for (let w  = 0; w < prevKey.split(" ").length; w++) {
+
+                                let keyNode = {data : {id : prevKey.split(" ")[w] + "_L2_MULTIGRAM_HEADER_" + x, label : prevKey.split(" ")[w]}, position : { x : xPos, y : embeddedYPos }, grabbable : false};
+                                embeddedYPos += embeddedIncrement;
+
+                                //Add to graph
+                                graphArr.push(keyNode);
+
+                            }
+
+                            //Finally, re-draw the actual successor node (where the branch will be pointing to)
+                            L2SuccessorNodes[x]["position"]["y"] = embeddedYPos;
+                        
+                        }   
+                        
+                        //Get probability and use it to label branch
+                        let leftBracketIdx = L2SuccessorNodes[x]["data"]["label"].lastIndexOf("(");
+                        let rightBracketIdx = L2SuccessorNodes[x]["data"]["label"].lastIndexOf(")");
+                        
+                        //Substring
+                        let prob = Number(L2SuccessorNodes[x]["data"]["label"].substring(leftBracketIdx + 1, rightBracketIdx)).toFixed(2);
+
+                        //Remove from label
+                        L2SuccessorNodes[x]["data"]["label"] = L2SuccessorNodes[x]["data"]["label"].substring(0, leftBracketIdx - 1);
+                        
+                        //Create branch between L1 node and this one + push to graph
+                        let newDirectBranch = {data : {source : sourceNode, target : L2SuccessorNodes[x]["data"]["id"], label : prob}, grabbable : false};
+                        graphArr.push(newDirectBranch)
+
+                        //Increment current y position
+                        currYPos += increment;
+
+                    }
+
+                //When the L2 nodes must be placed into a box
+                //If the other two cases have failed and the model is a bi-gram, this must execute
+                //If not a bi-gram, moreThanOneSuccessor[i] must be true for this to execute
+                } else if (modelType === "Bi-gram" || moreThanOneSuccessor[i]) {
+
+                    if (modelType === "Bi-gram") {sourceNode = successorIDsL0L1[i];} 
+                    else {sourceNode = bracketNodesL1L2[i];}
+                    targetNode = "BOX_L2_" + i;
+
+                    //Set branch
+                    newBranchL1L2 = {data : {source : sourceNode, target : targetNode, label : ""}, grabbable : false};
+
+                }
+
+                //Add to graph
+                if (newBranchL1L2 !== undefined) {graphArr.push(newBranchL1L2);}
+                
                 //If more than one successor is present, as mentioned earlier, we must add the hanging initial phrases on top of the given branches
                 //Also add a bracket from the top of said hanging phrase to the bottom of the bounding box
 
-                if (moreThanOneSuccessor[i]) {
+                if (moreThanOneSuccessor[i] && boxBorderWidth !== 0) {
 
                     //Use width and y position of the box (remember that if we have more than one successor, a box must be present)
                     //Create node from the hangingInitPhrases array as well as a new bracket
                     //let newHangingNode = {data : {id : hangingInitPhrases[i] + "_HANGING_PHRASE_" + i, label : hangingInitPhrases[i]}, position : {x: (midpoint - (0.5 * boxDist)) - 40, y : allFirstOrderPositions[i] - 25}};
-                    let newHangingNode = {data : {id : hangingInitPhrases[i] + "_HANGING_PHRASE_" + i, label : hangingInitPhrases[i]}, position : {x: midpoint, y : allFirstOrderPositions[i] - (height/2) - 25}};
+                    let newHangingNode = {data : {id : hangingInitPhrases[i] + "_HANGING_PHRASE_" + i, label : hangingInitPhrases[i]}, position : {x: midpoint, y : allFirstOrderPositions[i] - (height/2) - 25}, grabbable : false};
                     //Add to graph
-                    setGraphData(existingGraph => [...existingGraph, newHangingNode]);
+                    graphArr.push(newHangingNode)
 
                     if (modelType !== "Bi-gram") {
-                        let newBracketNode = {data : {id : successorIDsL0L1[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (boxDist/2) + 25 , y : allFirstOrderPositions[i] - (height/2)}, style : {height : 50, width : 25, "font-size" : 90}};
-                        setGraphData(existingGraph => [...existingGraph, newBracketNode]);
+                        let newBracketNode = {data : {id : successorIDsL0L1[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (boxDist/2) + 25 , y : allFirstOrderPositions[i] - (height/2)}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                        graphArr.push(newBracketNode)
                     }
 
                 } else {
-                    if (modelType !== "Bi-gram") {
+
+                    if (modelType !== "Bi-gram" && renderBracket) {
 
                         //Determine bracket x-position by figuring out the longest word in the previous chain
                         let word1 = successorsL1[i];
@@ -1436,13 +1568,16 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                         //Right bound of the bracket will be midpoint + 1/2 of the longest length times the number of pixels occupied by the characters.
                         //The optimal constant can be found through trial and error; but generally, will be between 8 - 20 (divided by two of course)
 
-                        let newBracketNode = {data : {id : successorIDsL1L2[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (longestLength * 10), y : allFirstOrderPositions[i]}, style : {height : 50, width : 25, "font-size" : 90}};
-                        setGraphData(existingGraph => [...existingGraph, newBracketNode]);
+                        let newBracketNode = {data : {id : successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET", label : "]"}, position : {x: midpoint + (maxWrap/2), y : allFirstOrderPositions[i]}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                        graphArr.push(newBracketNode)
                     }
                 }
                 
             }
         }
+
+        //Set graphData to the graphArr
+        setGraphData(graphArr)
     }
 
     //Create a function to render a graph. As mentioned above, it should be triggered by changing generatedText in automatic mode and nGramDict in manual mode.
@@ -1459,6 +1594,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
             //Set the graph's layout
             setLayout({
                 name: layoutName,
+                grabbable: false,
                 fit: true,
                 rankDir: "LR",
                 directed: false,
@@ -1473,6 +1609,7 @@ And, we can gene3rate the initial array of longest guys from this logic as well.
                 randomize: false,
                 ready: false,
                 stop: false,
+                
             });
         }
     }

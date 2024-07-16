@@ -1,5 +1,5 @@
 import { all } from 'axios';
-import React, {createContext, useState, useContext} from 'react';
+import React, {createContext, useState, useEffect, useContext} from 'react';
 
 //Generate context
 const DictContext = createContext();
@@ -183,6 +183,8 @@ export const DictContextProvider = ({ children }) => {
 
     //Enabling the Re-build dictionary button
     let [enableButton, setEnableButton] = useState(false);
+    //To verify that panes 3 and 4 have been cleared before building a given dictionary
+    const [panesCleared, setPanesCleared] = useState(true);
 
     //Set model type
     const [modelType, setModelType] = useState("Bi-gram");
@@ -221,6 +223,8 @@ export const DictContextProvider = ({ children }) => {
     const [wordOptions, setWordOptions] = useState([])
 
     //Keep track of nodes that have been added to the manual visualization graph (all selected)
+    //Declare a state variable to house the graph and keep track of all added nodes
+    const [graphData, setGraphData] = useState([]);
     const [keysAdded, setKeysAdded] = useState([]);
     const [enableNextWord, setEnableNextWord] = useState(false);
     const [clearButtonClicked, setClearButtonClicked] = useState(false);
@@ -347,12 +351,14 @@ export const DictContextProvider = ({ children }) => {
             let j = 0;
 
             for (let [valueKey, valueProb] of value_map) {
-                value_map.set(valueKey, parseFloat(allFrequencies[j].toFixed(2)));
+                //Round to two decimal places
+                let roundedVal = parseFloat(allFrequencies[j].toFixed(2));
+
+                value_map.set(valueKey, roundedVal);
                 j++;
             }
             
         }
-
         return bigram_map
     }
 
@@ -795,6 +801,8 @@ export const DictContextProvider = ({ children }) => {
             setLenDict,
             modelType,
             setModelType,
+            panesCleared,
+            setPanesCleared,
             pane2KeyClicked,
             setPane2KeyClicked,
             manualStartKey,
@@ -825,6 +833,8 @@ export const DictContextProvider = ({ children }) => {
             setKey,
             wordOptions,
             setWordOptions,
+            graphData,
+            setGraphData,
             keysAdded,
             setKeysAdded,
             enableNextWord,

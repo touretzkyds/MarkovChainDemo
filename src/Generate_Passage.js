@@ -8,9 +8,9 @@ export default function GeneratePassage(){
 
     //Get user ID and other helper variables from context
     //In particular, leverage nodesAdded rather than generatedText to display iteratively and highlight keys in automatic generation mode
-    const {nGramDict, enableButton, currentWord, modelType, 
+    const {nGramDict, enableButton, currentWord, modelType, setNGramDict, panesCleared, setPanesCleared,
            setAutoGraphAllowed, generatedText, setGeneratedText,
-           setManualGeneratedText, wordCount, setCurrentWord, wordOptions, setWordOptions, 
+           setManualGeneratedText, finishedRendering, wordCount, setCurrentWord, wordOptions, setWordOptions, 
            key, setKey, setWordCount, textGenMode, setTextGenMode, 
            enableNextWord, setEnableNextWord, setKeysAdded, 
            generate_text, currentWordCounter, setCurrentWordCounter, unFormatText, 
@@ -22,7 +22,7 @@ export default function GeneratePassage(){
     //Keep track for the switch whether the mode of generation is automatic or not
     const [isAutomaticSwitch, setIsAutomaticSwitch] = useState(true);
     //Whether the display pane has been reset
-    const [reset, setReset] = useState(false);
+    const [reset, setReset] = useState(false);    
 
     //Set display text as blank initially
     let display_text = "";
@@ -35,7 +35,7 @@ export default function GeneratePassage(){
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [display_text])
-    
+
     //Get mode of generation when changed
     const change_mode_generation = () => {
         //Toggle current mode of generation to the opposite
@@ -76,7 +76,7 @@ export default function GeneratePassage(){
     //Click handler
     const gen_button_clicked = () => {
         //Generate text
-        setGeneratedText(generate_text(null, nGramDict, modelType, wordCount))
+        setGeneratedText(generate_text(null, nGramDict, modelType, wordCount).trim())
         //Set automatic graph generation to permitted
         setAutoGraphAllowed(true);
     }
@@ -116,8 +116,6 @@ export default function GeneratePassage(){
         else if (modelType === "Tetra-gram") {word = genTextArr[genTextArr.length - 3] + " " + genTextArr[genTextArr.length - 2] + " " + genTextArr[genTextArr.length - 1]}
 
         //Randomly choose a word from wordOptions, ONLY if we are not at the end of a chain
-        console.log("CURRENT WORD:", word);
-        console.log("NGRAM:", nGramDict.get(unFormatText(word)));
         if (nGramDict.get(unFormatText(word)) !== undefined) {
             const start_word = wordOptions[Math.floor(Math.random() * wordOptions.length)];
             //Set current word
@@ -141,7 +139,7 @@ export default function GeneratePassage(){
             setCurrentWord("")
             display_text = "";
         }
-    }, [enableNextWord, modelType, nGramDict])
+    }, [enableNextWord, modelType])
 
     //Check whether the display pane has been reset 
     useEffect(() => {
@@ -154,10 +152,11 @@ export default function GeneratePassage(){
         //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [generatedText, key, wordOptions, currentWord])
+    }, [generatedText, key, wordOptions, nGramDict, currentWord])
 
     //Once reset, randomly select a start word
     useEffect(() => {
+
         if (reset && textGenMode === "manual") {
             //Randomly select a word to begin with
             const dict_keys = Array.from(nGramDict).map(function (pair) {return pair[0];});
@@ -169,11 +168,7 @@ export default function GeneratePassage(){
         //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [reset, textGenMode, modelType])
-
-    useEffect(() => {
-        console.log("CURRENT WORD FOUND:", currentWord)
-    }, [currentWord])
+    }, [reset, textGenMode, modelType, nGramDict])
 
     //Each time the currentWord is updated, generate a new selection of words
     useEffect(() => {
@@ -182,16 +177,16 @@ export default function GeneratePassage(){
             //Display current word + previously generated text to pane
             //Do this only if in manual text generation mode
             if (textGenMode === "manual") {
-                display_text = generatedText + " " + currentWord;   
+                //If generatedText is an empty string, simply set the display text to the current word. Otherwise, concatenate the two with a space
+                if (generatedText === "") {display_text = currentWord;}
+                else {display_text = generatedText + " " + currentWord; }
                 setGeneratedText(display_text);
             }
 
             //Set to receive next series of words
             let values = []
-            
-            //Change keys based on the model - use currentWord as key for bi-gram, the last word + currentWord for tri-gram, and the last two words + currentWord for the tetra-gram
-            if (nGramDict.get(currentWord) === undefined) {
-                console.log(nGramDict.get(currentWord))
+
+            if (modelType === "Bi-gram" && nGramDict.get(currentWord) === undefined) {
                 values = undefined;
             } else if (modelType === "Bi-gram"){
 
@@ -205,14 +200,17 @@ export default function GeneratePassage(){
 
                 //If we have passed the maximum viable word, set values to null
                 if (currentWordCounter > display_text.trim().split(" ").length - 2) {values = undefined;}
+
                 else {
+
                     //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
                     const local_key = display_text.trim().split(" ").slice(currentWordCounter, currentWordCounter + 2).toString().replace(",", " ");
-                    //Get values
                     
+                    //Get values
                     values = Array.from(nGramDict.get(local_key.trim())).map(function (pair) {return pair[0];});
+                    
                     //Set key
-                    setKey(local_key);
+                    setKey(currentWord);
                 }
 
             } else if (modelType === "Tetra-gram") {
@@ -221,29 +219,35 @@ export default function GeneratePassage(){
                 if (currentWordCounter > display_text.trim().split(" ").length - 3) {values = undefined;}
 
                 else {
+                    
                     //Extract sentence from current word to one word ahead (represented as currentWordCounter + 2 as the final index in .slice is not inclusive)
                     const local_key = display_text.trim().split(" ").slice(currentWordCounter, currentWordCounter + 3).toString().replace(",", " ").replace(",", " ");
+                    
                     //Get values
                     values = Array.from(nGramDict.get(local_key.trim())).map(function (pair) {return pair[0];});
+                    
                     //Set key
                     setKey(local_key);
+
                 }
 
             }
 
             //Check if values is undefined. If so, notify the user that the end of the chain has been reached
-            if (values === undefined) {setWordOptions(["End of chain"])} 
+            if (values === undefined || values.length === 0) {setWordOptions(["End of chain"])} 
+
             else {
+
                 const new_words = [...values];
                 //Set to word array
                 setWordOptions(new_words);
+
                 //Increment index of current word
                 const currentWordIndex = currentWordCounter;
                 setCurrentWordCounter(currentWordIndex + 1);
-            }
-        
-        }
 
+            }
+        }
     }, [currentWord, reset])
 
     //Manage when a word is chosen
@@ -254,8 +258,18 @@ export default function GeneratePassage(){
         //Get bracket index
         const bracketIdx = button_element.target.textContent.indexOf("(");
         const chosen_word = button_element.target.textContent.substring(0, bracketIdx).replace("<PERIOD>", ".").replace("<EXCL>", "!").replace("<Q>", "?").trim()
-        //Set 
+        
         setCurrentWord(chosen_word);
+        //If a bi-gram model, simply set the current word as the chosen one.
+        //For tri-and-tetra-gram models, concatenate with the previous and second previous words respectively.
+        // if (modelType === "Bi-gram") {
+        //     setCurrentWord(chosen_word);
+        // } else if (modelType === "Tri-gram") {
+        //     setCurrentWord(generatedText.split(" ")[generatedText.split(" ").length - 1] + " " + chosen_word);
+        // } else {
+        //     setCurrentWord(generatedText.split(" ")[generatedText.split(" ").length - 2] + " " + generatedText.split(" ")[generatedText.split(" ").length - 1] + " " + chosen_word);
+        // }
+        
 
     }
     
@@ -273,22 +287,41 @@ export default function GeneratePassage(){
             <div className = "panel-2-header" class = "flex flex-row h-fit w-11/12 align-center items-center justify-center space-x-4">
                 <div className = "passage-text-and-generation-method" class = "flex-auto flex-col align-left items-left w-6/12">
                     <div className = "generated-text" class = "flex font-bold monitor:text-lg 2xl:text-sm xl:text-sm sm:text-xs text-left w-full">[3] Generate From {modelType} Dictionary.</div>              
-                    <div className = "generation-method-selection" class = "flex flex-row items-center justify-center w-fit space-x-2">
-                        <div className = "automatic-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</div>
-                        <label for = "generation-mode-switch" class = "flex items-center bg-neutral-200 cursor-pointer relative monitor:w-15 2xl:w-10 xl:w-8 sm:w-8 monitor:h-5 2xl:h-5 xl:h-4 sm:h-4 rounded-full">
-                            <input type = "checkbox" id = "generation-mode-switch" class = "flex sr-only peer" onChange = {change_mode_generation} checked = {textGenMode !== "automatic"}></input>
-                            <span class = "flex w-2/5 h-4/5 bg-slate-900 absolute rounded-full peer-checked:bg-green-900 peer-checked:right-0 transition-all duration-500"></span>
-                        </label>
-                        <div className = "manual-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</div>
-                        {/* <div className = "auto-select" class = "flex flex-row space-x-2 w-fit">
-                            <input type = "radio" id = "automatic" name = "generation-type" value = "automatic" onChange = {change_mode_generation} checked = {textGenMode === "automatic"} class = "flex" ></input>
-                            <label for = "automatic" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</label>
+                    {!panesCleared ? (
+                        <div className = "generation-method-selection" class = "flex flex-row items-center justify-center w-fit space-x-2">
+                            <div className = "automatic-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</div>
+                            <label for = "generation-mode-switch" class = "flex items-center bg-neutral-200 cursor-pointer relative monitor:w-15 2xl:w-10 xl:w-8 sm:w-8 monitor:h-5 2xl:h-5 xl:h-4 sm:h-4 rounded-full">
+                                <input type = "checkbox" id = "generation-mode-switch" class = "flex sr-only peer" onChange = {change_mode_generation} checked = {textGenMode !== "automatic"}></input>
+                                <span class = "flex w-2/5 h-4/5 bg-slate-900 absolute rounded-full peer-checked:bg-green-900 peer-checked:right-0 transition-all duration-500"></span>
+                            </label>
+                            <div className = "manual-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</div>
+                            {/* <div className = "auto-select" class = "flex flex-row space-x-2 w-fit">
+                                <input type = "radio" id = "automatic" name = "generation-type" value = "automatic" onChange = {change_mode_generation} checked = {textGenMode === "automatic"} class = "flex" ></input>
+                                <label for = "automatic" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</label>
+                            </div>
+                            <div className = "manual-select" class = "flex flex-row space-x-2 w-fit">
+                                <input type = "radio" id = "manual" name = "generation-type" value = "manual" onChange = {change_mode_generation} checked = {textGenMode === "manual"} class = "flex"></input>
+                                <label for = "manual" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</label>
+                            </div> */}
                         </div>
-                        <div className = "manual-select" class = "flex flex-row space-x-2 w-fit">
-                            <input type = "radio" id = "manual" name = "generation-type" value = "manual" onChange = {change_mode_generation} checked = {textGenMode === "manual"} class = "flex"></input>
-                            <label for = "manual" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</label>
-                        </div> */}
-                    </div>
+                    ) : (
+                        <div className = "generation-method-selection" class = "flex flex-row items-center justify-center w-fit space-x-2">
+                            <div className = "automatic-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</div>
+                            <label for = "generation-mode-switch" class = "flex items-center bg-neutral-200 cursor-pointer relative monitor:w-15 2xl:w-10 xl:w-8 sm:w-8 monitor:h-5 2xl:h-5 xl:h-4 sm:h-4 rounded-full">
+                                <input type = "checkbox" id = "generation-mode-switch" class = "flex sr-only peer" checked = {textGenMode !== "automatic"}></input>
+                                <span class = "flex w-2/5 h-4/5 bg-slate-900 absolute rounded-full peer-checked:bg-green-900 peer-checked:right-0 transition-all duration-500"></span>
+                            </label>
+                            <div className = "manual-label" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</div>
+                            {/* <div className = "auto-select" class = "flex flex-row space-x-2 w-fit">
+                                <input type = "radio" id = "automatic" name = "generation-type" value = "automatic" onChange = {change_mode_generation} checked = {textGenMode === "automatic"} class = "flex" ></input>
+                                <label for = "automatic" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Automatic</label>
+                            </div>
+                            <div className = "manual-select" class = "flex flex-row space-x-2 w-fit">
+                                <input type = "radio" id = "manual" name = "generation-type" value = "manual" onChange = {change_mode_generation} checked = {textGenMode === "manual"} class = "flex"></input>
+                                <label for = "manual" class = "monitor:text-lg 2xl:text-base xl:text-sm sm:text-xs">Manual</label>
+                            </div> */}
+                        </div>
+                    )}
                 </div>
                 {textGenMode === "automatic" ? (
                     <div class = "w-0"></div>
@@ -337,7 +370,7 @@ export default function GeneratePassage(){
                         <div className = "generated-text" class = "w-full h-full bg-white outline outline-green-100 rounded-md overflow-y-auto p-2 text-left">{generatedText}</div>
                         <div class = "w-0"></div>
                     </div>
-                ): (
+                ) : (
                     <div className = "manual-text-container" class = "flex flex-row w-full h-full space-x-2">
                         <div className = "generated-text" class = "flex w-9/12 h-full bg-white outline outline-green-100 rounded-md overflow-y-auto p-2 text-left">
                             <div className = "text-container" class = "flex flex-wrap h-fit w-fit">
