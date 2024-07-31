@@ -85,7 +85,7 @@ function DisplayDict() {
             setManualStartKey(true);
 
             if (textGenMode === "automatic") {
-                setGeneratedText(generate_text(unFormatText(event.target.innerText).replace(/:+$/, ""), nGramDict, modelType, wordCount))
+                setGeneratedText(generate_text(event.target.innerText.replace(":", "").trim(), nGramDict, modelType, wordCount))
             } else {
 
                 //Set the current word counter (tracking the position of the current word) to zero as well
@@ -93,7 +93,7 @@ function DisplayDict() {
                 
                 setGeneratedText("");
                 //For enabling manual text generation with this new word
-                setCurrentWord(unFormatText(event.target.innerText).replace(/:+$/, ""))
+                setCurrentWord(event.target.innerText.replace(":", "").trim())
 
             }
 

@@ -282,8 +282,8 @@ export const DictContextProvider = ({ children }) => {
                 result_chars.push(' ');
             //Check if it is a spacer character (that we want to tokenize)
             } else if (spacer_chars.indexOf(current_char) > -1) {
-                //Push surrounded by spaces (separate token)
-                result_chars.push(...[' ', current_char, ' ']);
+                //Push surrounded by spaces (separate token) while reFormatting
+                result_chars.push(...[' ', reFormatText(current_char), ' ']);
             //If neither, simply append a lowercase version of the character
             } else {
                 result_chars.push(current_char.toLowerCase());
