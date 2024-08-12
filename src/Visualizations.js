@@ -52,9 +52,14 @@ export default function Visualizations() {
     //Vertical distance between L2 successors
     let maxDeviationYL2 = 25;
     //Maximum space that SPLIT (non-boxed) L2 successors can be distributed amongst
-    let maxDeviationSplitL2 = 120;
+    let maxDeviationSplitL2 = 300;
+    //Maximum vertical distance that multi-word-keys can take up when non-boxed L2 successors are split
+    let multiWordDist = 45;
     //Horizontal distance between L2 successor columns
     let maxDeviationXL2 = 220;
+
+    //Spacing distance between all L2 successor trees
+    let L2SpacingDistance = 100;
 
     //Array of dictionaries to hold all second-order graph elements
     //Structure: [{type : "box", elements : [], centerLine : 0}]
@@ -1296,6 +1301,9 @@ export default function Visualizations() {
                         successorIDsL1L2[i].includes(data_entry["data"]["id"])
                     )
 
+                    //Calculate maxDeviationSplitL2 such that spacing between these nodes is identical to the spacing between the L2 successor elements
+                    maxDeviationSplitL2 = (L2SuccessorNodes.length  + 1) * L2SpacingDistance / 2;
+
                     //Create a variable to hold the current y position
                     let currYPos = allFirstOrderPositions[i] - maxDeviationSplitL2;
 
@@ -1349,9 +1357,9 @@ export default function Visualizations() {
                             allSecondOrderElements[i]["elements"].push(successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET_" + x);
 
                             //Create a new variable to evenly space nodes amongst the given position
-                            let embeddedYPos = currYPos - 45;
+                            let embeddedYPos = currYPos - multiWordDist;
                             //Increment
-                            const embeddedIncrement = 45 * 2 / (nPartitions + 1)
+                            const embeddedIncrement = multiWordDist * 2 / (nPartitions + 1)
                             embeddedYPos += embeddedIncrement
 
                             //Iterate over previous key nodes
@@ -1460,8 +1468,6 @@ export default function Visualizations() {
 
             //If there is more than one L1 successor, re-arrange all second-order successors such that they are evenly spaced. Then, arrange the L1 successors such that this is possible
             if (successorsL1.length > 1) {
-
-                let L2SpacingDistance = 80;
 
                 //Here's how this algorithm works. We find the bottom of the first set of L2 successors. Then, we determine what type the next set of L2 successors is.
                 //If the next set is simply a single word, well, we just make sure it's spaced by L2SpacingDistance. 
