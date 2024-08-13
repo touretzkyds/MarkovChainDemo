@@ -1,25 +1,83 @@
-//Get react and cytoscape (the latter is leveraged for visualizations)
 import React, {useState, useEffect, useRef} from "react";
 import CytoscapeComponent from "react-cytoscapejs";
-
-//Get dictionary and visualization contexts
+import cytoscape from 'cytoscape';
+import dagre from 'cytoscape-dagre';
 import { useDictContext } from "./Context";
-import { useVisContext } from "./VisualizationFunctions";
+import { render } from "@testing-library/react";
+
+cytoscape.use(dagre);
 
 export default function Visualizations() {
 
 
-    // ======================= ALL STATE VARIABLES =======================
+    /*
 
-    //Get all needed variables and functions from DictContext
-    const {nGramDict, modelType, textGenMode, generatedText, reFormatText, 
-           pane2KeyClicked, setPane2KeyClicked, globalStartKey, manualStartKey, setManualStartKey,
-           setCurrentWord, setKey, graphData, setGraphData, setKeysAdded, 
-           wordOptions, clearButtonClicked, setClearButtonClicked} = useDictContext();
+    Some ideas for the multi-pane visualizations that are needed for the re-sizing algorithm.
 
-    //Get all visualization-related variables and functions from VisContext
-    const {renderNode, renderBracket, renderStartKey, determineStartKey, 
-           renderStandaloneTriTetra, determineBracketXPos, findEdge} = useVisContext();
+    Rather than re-placing and re-moving all of the words, we should place them in the right spot the first time.
+
+    We should write a separate function that deals with taking all of the current positions for all of the different words, and then rendering them.
+
+    //Or actually - it hasn't been rendered yet.
+
+    Add stuff to the graph data portion first.
+
+    Then, here's what we're going to do. We're going to set a function that takes in the maximum number of columns - perhaps 11.
+    The goal is for the function to optimize this function by maximizing the amount of rows filled, with the counter goal of
+    minimizing the total length for any given set of L2 successors.
+    How do we actually do this?
+    Well, we have to check the input variables. There are two - the number of rows, and the successor chosen to make this happen.
+    What's the mathematical relationship between the two?
+
+    1-to-1 -> increasing the number of rows will just add 1 to the column size
+
+
+---
+
+Alright, let's clean things up. Every single thing should be its own function.
+
+We have a function for building the graph. Let's make a general outline and figure out what goes where.
+
+1. Figure out what the start word is, based on the value of n. Create the vertically stacked node.
+2. Find L1 successors, create brackets, and set up variables. Determine the length of second-order successors, and whether or not they should be rendered
+3. Iterate through all first-order successors. Change columns when appropriate, and align based on the max number of words allowed per column. For each iteration, change the y-coordinate.
+4a. Generate, iteratively, the first-order successors. For bi-gram models, simply place the node. For tri-and-tetra-gram models, iteratively generate the L1 successors in a vertical stack.
+4b. If generating second-order successors, also add bracket nodes to the right (and append to the respective array).
+ --> This could most likely be simplified further. 
+5. If a bi-gram model, add the successor directly to the array,
+6. Now, if generating second-order successors, create the second order keys, generate the successors, and figure out the maximum allowable size for each column (max columnSize)
+7. For tri-and-tetra-gram models, add the previous hanging key before adding the remainder of the successors
+8. Set x-and-y coordinates. Use the columnSize if more than one column, or simply the length of the successors if this is not the case.
+9. Iterate through each one of the second-order successors, accounting for the final column, and generate the respective elements.
+10. Generate boxes around the respective elements, based on the stored starting positions.
+
+Where should the iterative "longest guy" algorithm take place?
+Well, what does it entail?
+a) Basically, the goal is to reduce the width of the ENTIRE graph - the longest guy. 
+b) This doesn't necessarily mean squeeze everything all into one column. Instead, it means that the longest row should be as short as possible
+c) Where there's room, we want to split an existing set of words across both columns -> creating an even distribution.
+
+So, how do we do this? 
+
+Well, we could just place everything on the graph and then slowly find the longest guy and keep reducing it's length until it's no longer the longest guy
+This would require a lot of rearrangements...ideally, we want to start off with the correct positions and only render the graph once.
+Create an array with the maximum length sizes of L2 successor set. [5, 3, 10, 2] Also keep track of the total number of rows used (with a maximum upper bound set)
+Find the longest one. Reduce as much as possible -> either until it's less than the next largest successor, or until the total number of columns have been exceeded.
+The intuition makes sense. The question is - how do we implement this, while managing all of the different IDs that have been created? 
+Well, the rendering logic is the same - the same method for calculating x-and-y coordinates. The only thing that's changing is the actual column size.
+We don't even have to render this iteratively. n_columns = total/column_size. We keep doing total/column_size until one of the two exit conditions mentioned above are met, and then we draw the graph.
+And, we can gene3rate the initial array of longest guys from this logic as well. We don't need to generate the L2 successors based on each L1 successor; we can do them separately as long as the flag is true.
+
+*/
+
+
+    //Get variables needed from the shared context
+    const {nGramDict, modelType, textGenMode, generatedText, 
+           reFormatText, unFormatText, pane2KeyClicked, setPane2KeyClicked, globalStartKey, setGlobalStartKey, manualStartKey, setManualStartKey,
+           setCurrentWord, setKey, graphData, setGraphData, setKeysAdded, wordOptions, clearButtonClicked, setClearButtonClicked} = useDictContext();
+
+    //Store a reference to the cytoscape component so that we can directly refer to and alter it
+    let graphRef = useRef(null);
 
     //State variable to check whether the current display has successfully been reset
     const [isReset, setIsReset] = useState(false);
@@ -35,48 +93,30 @@ export default function Visualizations() {
     //Flag to determine whether the manual graph has been rendered for each instance of words
     const [manualRendered, setManualRendered] = useState(false);
 
-    
-    // ======================= ALL PANE RENDERING AND STYLE CONSTANTS =======================
+    //CONSTANTS FOR PANE FOUR RENDERING (maximum x and y bounds)
 
-    //L1
-
-    //Maximum space that L1 successors can be distributed amongst
-    let maxDeviationYL1 = -500;
-    //Maximum space that BOXED L1 successors can be distributed amongst
+    //Maximum height of graph away from central axis for both successor layers (vertically and horizontally)
+    //For L2 successors, maximum y deviation is auto-calculated and thus does not need to be explicitly defined.
+    let maxDeviationYL1 = -500; //340
+    //Max Deviation YL1 for first-generation boxes (spacing is not necessary)
     let maxDeviationYL1BoxL1 = -200;
-    //Horizontal distance between L0, L1, and L2 successors
     let maxDeviationXL1 = 170;
-
-    //L2
-
-    //Vertical distance between L2 successors
     let maxDeviationYL2 = 25;
-    //Maximum space that SPLIT (non-boxed) L2 successors can be distributed amongst
-    let maxDeviationSplitL2 = 300;
-    //Maximum vertical distance that multi-word-keys can take up when non-boxed L2 successors are split
-    let multiWordDist = 45;
-    //Horizontal distance between L2 successor columns
+    //Control the spread of L2 nodes
+    let maxDeviationSplitL2 = 200;
     let maxDeviationXL2 = 220;
-
-    //Spacing distance between all L2 successor trees
-    let L2SpacingDistance = 100;
-
-    //Array of dictionaries to hold all second-order graph elements
-    //Structure: [{type : "box", elements : [], centerLine : 0}]
-    let allSecondOrderElements = [];
     
     //Node width and height
     const nodeWidth = 150;
     const nodeHeight = 50;
 
-    //Edge width
-    const edgeWidth = 5;
-    //Edge label margins - how far the probabilities will be placed from each individual branch.
-    const probLabelMargin = -13;
+    //Max length a word can be before text wrapping
+    const maxWrap = nodeWidth + maxDeviationXL2/7
 
-    //Max length a word can be before text wrapping (arbitrary, can be adjusted depending on personal preference)
-    const maxWrap = nodeWidth + maxDeviationXL2/7;
-
+    //Jitter parameters
+    const jitterX = 20;
+    const jitterY = 9;
+ 
     //Bounding box width padding parameters (1 times the node width, 2 times the node width, 3 times, etc.)
     const boundingBoxPadding = 0.7;
 
@@ -105,19 +145,19 @@ export default function Visualizations() {
             //Style parameters for edges
             selector: 'edge', // Apply the style to all edges
             style: {
-                'width': edgeWidth, // Edge width
+                'width': 5, // Edge width
                 'line-color': 'black', // Edge color
                 "curve-style" : "bezier",
                 'target-arrow-shape': 'triangle',
                 'target-arrow-color' : 'black',
                 'source-arrow-color' : 'black',
                 "label" : "data(label)",
-                "text-margin-y" : probLabelMargin
+                "text-margin-y" : "-13"
             }
         }
     ]
 
-    // ======================= ALL FUNCTIONS AND USEEFFECT HOOKS =======================
+    // =========== ALL FUNCTIONS AND EFFECTS ===========
 
     // RESET FUNCTIONS
 
@@ -135,9 +175,13 @@ export default function Visualizations() {
         setGraphData([]);
         graphArr = [];
         setKeysAdded([]);
+        //setWordOptions([]);
         setKey("");
         setCurrentWord("");
 
+        //If we are in manual mode, set the manual text to be blank
+        //if (textGenMode === "manual") {setManualText("")};
+        
     }
     
     //The graph display should be updated when the dictionary and generated text changes
@@ -163,7 +207,9 @@ export default function Visualizations() {
     }, [generatedText])
 
     useEffect(() => {
-        if (textGenMode === "automatic" && pane2KeyClicked) {resetGraph();}
+        if (textGenMode === "automatic" && pane2KeyClicked) {
+            resetGraph();
+        }
 
         //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
@@ -172,23 +218,81 @@ export default function Visualizations() {
 
     //Reset the graph additionally when the clear button in pane three has been clicked - this is only possible for manual text generation mode, but the execution is identical
     useEffect(() => {
-        if (clearButtonClicked) {setClearButtonClicked(false);}
+        if (clearButtonClicked) {
+            //resetGraph();
+            setClearButtonClicked(false);
+        }
 
         //The following line suppresses warnings regarding not including some variables in the useEffect dependency array.
         //This is INTENTIONAL - said variables are NOT supposed to influence the given useEffect hook. 
         //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [clearButtonClicked])
 
+
     //If the layout has not been yet defined or built, and the graph is currently empty, set the reset flag to true - all variables are now at their default position
     useEffect(() => {
-
         //Verify that the aforementioned is the case
-        if (layout === undefined && layoutBuilt === false && graphData.length === 0) {setIsReset(true);}
-
+        if (layout === undefined && layoutBuilt === false && graphData.length === 0) {
+            setIsReset(true);
+        }
     }, [layout, layoutBuilt, graphData])
+
+    //Function to generate factors given a number (incredibly useful when rendering column sizes)
+    //Efficient solution - source https://stackoverflow.com/questions/22130043/trying-to-find-factors-of-a-number-in-js
+    const findFactors = (number) => {
+        
+        //Check if the number is even
+        const isEven = number % 2 === 0;
+        const max = Math.sqrt(number);
+        const inc = isEven ? 1 : 2;
+        let factors = [1, number];
+
+        for (let curFactor = isEven ? 2 : 3; curFactor <= max; curFactor += inc) {
+            if (number % curFactor !== 0) {continue;}
+            factors.push(curFactor);
+            let complement = number / curFactor;
+            if (complement !== curFactor) {factors.push(complement);}
+        }
+        
+        return factors;
+    }
+
+    // //Function to format the nodes of the graph (for instance, making them ungrabbable)
+    // const formatNodes = () => {
+        
+    //     //Access cytoscape reference if the graph has been rendered
+    //     if (graphRef.current) {
+            
+    //         //Get cytoscape reference
+    //         const cy = graphRef.current._cy;
+    //         console.log("WORKING")
+    //         //Make each node ungrabbable
+    //         console.log("CY NODES:", cy.nodes())
+    //         cy.nodes("").style("color", "black");
+    //         cy.nodes().forEach(node => {
+                
+    //             console.log("MAKING UNGRABBBABLE")
+    //             console.log("NODE GRABBABLE:", node[0]._private.grabbable);
+    //             node.style("color", "orange")
+    //             node[0]._private.grabbable = false;
+    //             console.log("NODE GRABBABLE:", node[0]._private.grabbable);
+    //         })
+
+    //     }
+
+    // }
+
+    // //Each time the graph data changes, format the respective nodes
+    // useEffect(() => {
+    //     formatNodes();
+    // }, [graphData, graphRef.current])
 
     //Function to build graph based on dictionary
     const buildGraph = () => {
+
+        //Set keys array
+        let dictArr = Array.from(nGramDict);
+        const dictKeys = dictArr.map(function (pair) {return pair[0];});
 
         //Set an array to track all added nodes
         let allAddedNodes = [];
@@ -199,28 +303,33 @@ export default function Visualizations() {
         //However, if the dictionary key has been clicked by the user, leverage that as the starting point instead
         if (manualStartKey) {
 
-            startKey = reFormatText(globalStartKey);
+            startKey = globalStartKey;
             setManualStartKey(false);
             setPane2KeyClicked(false);
 
-        //Otherwise, generate the startKet from the final n words of generatedText (n depends on the model type)
         } else {
             
-            //Get start key
-            startKey = determineStartKey(modelType, generatedText, null);
-            //Set the manual rendered flag as true
-            setManualRendered(true);
+                //Based on the model type, decide the final n words to check
+                let n = 1;
+                if (modelType === "Tri-gram") {n = 2;}
+                else if (modelType === "Tetra-gram") {n = 3;}
+                
+                startKey = generatedText.trim(" ").split(" ").slice(-n).join(" ").trim(" ");
+    
+                if (n === 1 && startKey.trim(" ").split(" ").length >= 2) {
+                    startKey = startKey.trim(" ").split(" ")[0]
+                }
+    
+                //Set the manual rendered flag as true
+                setManualRendered(true);
         }
 
-        //Check that the chosen start key is valid
         if (startKey === undefined || startKey === null || startKey === "") {return;}
-        //If it is valid (and no characters are undefined), render the node
 
         if (!startKey.split(" ").includes("undefined")) {
 
             //For bi-gram models, simply place the word at 0,0
             //For non-bi-gram models, stack words vertically 
-
             let newGraphPoint;
             if (modelType === "Bi-gram") {
 
@@ -259,7 +368,7 @@ export default function Visualizations() {
 
                 //Add a bracket node to the graph
                 //Create bracket node
-                let newBracketNode = {data : {id : reFormatText(startKey) + "_BRACKET", label : "]"}, position : {x: determineBracketXPos(words, 0), y : 0}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                let newBracketNode = {data : {id : reFormatText(startKey) + "_BRACKET", label : "]"}, position : {x: 0 + maxWrap/2, y : 0}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
                 //Add to graph
                 graphArr.push(newBracketNode)
                  
@@ -312,14 +421,18 @@ export default function Visualizations() {
         //Counter to keep track of the current column being rendered
         let columnCounterL1 = 0;
 
-        //To keep track of keys that are more than one word for first-order nodes
-        //This is used for re-arranging said keys when evenly spacing second-order successors
-        let multiWordL0L1IDs = []
-
         //Determine successor length
         let successorLength = successorsL1.length;
         let renderSecondOrderSuccessors = successorLength > 5 ? false : true;
         let maxFirstOrderSuccessors = renderSecondOrderSuccessors ? Math.min(5, successorLength) : successorLength;
+
+        // //If we are in manual text generation mode and the length of the text is the length of one key (we are on the first word), only display first order successors
+        // if (textGenMode === "manual") {
+        //     let genTextLen = generatedText.trim(" ").split(" ").length;
+        //     if ((modelType === "Bi-gram" && genTextLen === 1) || (modelType === "Tri-gram" && genTextLen === 2) || (modelType === "Tetra-gram" && genTextLen === 3)) {
+        //         renderSecondOrderSuccessors = false;
+        //     }
+        // }
 
         //The following array of flags will be turned to true if, for all non-bi-gram models, a single key-L2 successor pair has already been added to a single node (i.e. there is only one L2 successor)
         let moreThanOneSuccessor = new Array(maxFirstOrderSuccessors).fill(false);
@@ -443,10 +556,6 @@ export default function Visualizations() {
             
             //Add jitter if second-order successors are not being rendered
             //If we are dealing with a bi-or-tri-gram model, arrange each word vertically and store.
-            
-            //Push empty array
-            multiWordL0L1IDs.push([]);
-
             if (!renderSecondOrderSuccessors) { //&& maxFirstOrderSuccessors > 1
 
                 if (modelType === "Bi-gram") {
@@ -473,9 +582,9 @@ export default function Visualizations() {
                     //For a tri-gram model, add the next word. For a tetra-gram model, add the next two words.
                     let newEndWordsPoint;
                     if (modelType === "Tri-gram") {
-                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " (" + nGramDict.get(startKey).get(words[1]).toFixed(2) + ")"}, position : {x: xCoordinateL1, y : triTetraYCoord}, style : {"font-weight" : "bold"}, grabbable : false};
+                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[1] + " (" + nGramDict.get(unFormatText(startKey)).get(unFormatText(words[1])).toFixed(2) + ")"}, position : {x: xCoordinateL1, y : triTetraYCoord}, style : {"font-weight" : "bold"}, grabbable : false};
                     } else {
-                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[2] + " (" + nGramDict.get(startKey).get(words[2]).toFixed(2) + ")"}, position : {x: xCoordinateL1, y : triTetraYCoord + 15}, style : {"font-weight" : "bold"}, grabbable : false};
+                        newEndWordsPoint = {data : {id : successor + successorCount + "_WORD_" + 1, label : words[2] + " (" + nGramDict.get(unFormatText(startKey)).get(unFormatText(words[2])).toFixed(2) + ")"}, position : {x: xCoordinateL1, y : triTetraYCoord + 15}, style : {"font-weight" : "bold"}, grabbable : false};
                     }
 
                     graphArr.push(newEndWordsPoint)
@@ -490,17 +599,14 @@ export default function Visualizations() {
                     graphArr.push(newGraphPoint)
                 
                 } else {
-
-                    //To store all word IDs for second-order-key arranging
-                    let wordIDs = [];
                     
                     //Get words
                     let words = nodeLabel.split(" ");
 
                     //Store currently available y-coordinate. For tri-gram models, evenly split the words around the central axis. For tetra-gram models, 
                     //split all three around the given axis.
-                    //Assume a maximum sub-y deviation of 50 px
-                    let maxTriTetraYDeviation = 50;
+                    //Assume a maximum sub-y deviation of 30 px
+                    let maxTriTetraYDeviation = 45;
                     let triTetraYCoord = yCoordinateL1 - maxTriTetraYDeviation;
  
                     //Variable to determine number of required partitions
@@ -531,16 +637,10 @@ export default function Visualizations() {
                             successorIDsL0L1.push(successor + successorCount + "_WORD_" + i);
                         }
 
-                        //Add to wordIDs
-                        wordIDs.push(successor + successorCount + "_WORD_" + i)
-
                     }
 
-                    //Push word IDs to multiWordL0L1IDs
-                    multiWordL0L1IDs[i] = wordIDs;
-
                     //Create bracket node and add to graph
-                    let newBracketNode = {data : {id : successor + successorCount + "_BRACKET", label : "]"}, position : {x: determineBracketXPos(words, xCoordinateL1), y : yCoordinateL1}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                    let newBracketNode = {data : {id : successor + successorCount + "_BRACKET", label : "]"}, position : {x: xCoordinateL1 + (maxWrap/2), y : yCoordinateL1}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
                     graphArr.push(newBracketNode)
 
                     //Add to array for branch creation
@@ -592,7 +692,7 @@ export default function Visualizations() {
                 }
 
                 //Get probability
-                let prob = nGramDict.get(startKey).get(successor);
+                let prob = nGramDict.get(unFormatText(startKey)).get(unFormatText(successor));
                 if (prob !== undefined) {prob = prob.toFixed(2);}
 
                 let newBranchL1 = {data : {source : source, target : target, label : prob}, grabbable : false};
@@ -710,12 +810,18 @@ export default function Visualizations() {
             let successorLengthDict = {}
             //Dictionary of booleans with sorted status for each column
             let isColumnSorted = {}
+            //Dictionary with an array of factors for each successorL2 length
+            let factorArrays = {};
 
             //Update a dictionary to keep track of indexes, the total L2 Columns length array, a dictionary to keep track of each column's sorted status, and factors
             for (let i = 0; i < successorL2Lengths.length; i++) {
                 successorLengthDict[i] = successorL2Lengths[i];
                 totalL2Columns[i] = successorL2Lengths[i];
                 isColumnSorted[i] = false;
+
+                let factors = findFactors(successorL2Lengths[i]);
+                factors.sort((a, b) => a - b);
+                factorArrays[i] = factors;
                 
             }
 
@@ -763,6 +869,15 @@ export default function Visualizations() {
                 }
 
                 //Move on if the value at the highest idx has already been sorted and the values for both the highest and second highest are equal, break
+                //if (isColumnSorted[highestIdx] && totalL2Columns[highestIdx] === totalL2Columns[secondHighestIdx]) {continue;}
+                //if (isColumnSorted[highestIdx]) {break;}
+                //Get all factors above the current columnSize value
+                let factorsHighest = factorArrays[highestIdx].filter(factor => factor >= columnSizes[highestIdx])
+                let factorsSecondHighest = factorArrays[highestIdx].filter(factor => factor >= columnSizes[secondHighestIdx])
+
+                //let factorsSecondHighest = findFactors(totalL2Columns[secondHighestIdx]).sort();
+
+                let factorIdx = 1; //We don't consider 1, so we start with the second index
 
                 //Find factors of the highest value
 
@@ -773,39 +888,57 @@ export default function Visualizations() {
                     let newColSize = columnSizes[highestIdx];
                     let newTotCol = totalL2Columns[highestIdx];
 
-                    //Store previous column size for row calculations
-                    let prevColSize = columnSizes[highestIdx];
+                    if (false && factorsHighest.length > 2) {
 
-                    //Simply increase the column size rather than leveraging factors
-                    newColSize++
+                        //Store previous column size for row calculations
+                        let prevColSize = columnSizes[highestIdx];
+                        //Set the column size to the next largest factor
+                        newColSize = factorsHighest[factorIdx];
+                        //Number of columns are now the complement of said factor
+                        newTotCol = Math.floor(successorL2Lengths[highestIdx] / newColSize);
+                        //Add the difference between the current and previous column sizes to the row counter
+                        currRows += newColSize - prevColSize;
 
-                    //Number of columns are now the complement; use the ceiling (5 successors with a column size of two means three factors must be present.)
-                    newTotCol = Math.ceil(successorL2Lengths[highestIdx] / newColSize);
+                        //Increment the factor idx
+                        factorIdx++;
+                    
+                    //If the number is prime
+                    } else {
 
-                    //Add the difference between the current and previous column sizes to the row counter
-                    currRows += newColSize - prevColSize;
+                        //Store previous column size for row calculations
+                        let prevColSize = columnSizes[highestIdx];
 
-                    //Check to see if, after the above changes, it is possible to further reduce the number of columns
-                    //If the number of columns is still the same, get the remainder and check if it can be fit within the allotted number of rows
-                    if (newTotCol >= totalL2Columns[highestIdx]) {
-                        
-                        //Get remainder
-                        let remainder = 0;
-                        if (successorL2Lengths[highestIdx] > (newColSize - 1)) {remainder = successorL2Lengths[highestIdx] % (newColSize - 1);}
+                        //Simply increase the column size rather than leveraging factors
+                        newColSize++
 
-                        //Get number of columns excluding the remainder
-                        let columnsWithoutRemainder = newTotCol;
-                        if (remainder > 0) {columnsWithoutRemainder--;}
+                        //Number of columns are now the complement; use the ceiling (5 successors with a column size of two means three factors must be present.)
+                        newTotCol = Math.ceil(successorL2Lengths[highestIdx] / newColSize);
 
-                        //Calculate the number of extra rows required
-                        let nExtraRows = Math.ceil(remainder/columnsWithoutRemainder);
+                        //Add the difference between the current and previous column sizes to the row counter
+                        currRows += newColSize - prevColSize;
 
-                        //If the required number of extra rows goes over the amount of rows available, break
-                        if (currRows + nExtraRows > maxRows) {
-                            breakLoop = true;
-                            break;
+                        //Check to see if, after the above changes, it is possible to further reduce the number of columns
+                        //If the number of columns is still the same, get the remainder and check if it can be fit within the allotted number of rows
+                        if (newTotCol >= totalL2Columns[highestIdx]) {
+                            
+                            //Get remainder
+                            let remainder = 0;
+                            if (successorL2Lengths[highestIdx] > (newColSize - 1)) {remainder = successorL2Lengths[highestIdx] % (newColSize - 1);}
+
+                            //Get number of columns excluding the remainder
+                            let columnsWithoutRemainder = newTotCol;
+                            if (remainder > 0) {columnsWithoutRemainder--;}
+
+                            //Calculate the number of extra rows required
+                            let nExtraRows = Math.ceil(remainder/columnsWithoutRemainder);
+
+                            //If the required number of extra rows goes over the amount of rows available, break
+                            if (currRows + nExtraRows > maxRows) {
+                                breakLoop = true;
+                                break;}
                         }
-                    } 
+                        
+                    }
 
                     //Check to see if the row count has been exceeded. If not, assign. If so, stick to the older version and terminate the inner loop
                     if  (currRows >= maxRows) {
@@ -821,6 +954,11 @@ export default function Visualizations() {
                 
                 //The column at the highest index has now been sorted. Update its status.
                 isColumnSorted[highestIdx] = true;
+
+                if (currRows < maxRows && (factorsHighest.length > 2 || factorsSecondHighest.length > 2)) {
+
+                }
+
 
             } 
 
@@ -988,12 +1126,12 @@ export default function Visualizations() {
                 let prob;
                 
                 if (modelType === "Bi-gram") {
-                    prob = nGramDict.get(unformattedSuccessor).get(successorL2);
+                    prob = nGramDict.get(unformattedSuccessor).get(unFormatText(successorL2));
                 } else if (modelType === "Tri-gram") {
-                    let key = startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor
-                    prob = nGramDict.get(key).get(successorL2);
+                    let key = unFormatText(startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor)
+                    prob = nGramDict.get(key).get(unFormatText(successorL2));
                 } else {
-                    prob = nGramDict.get(startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor).get(successorL2);
+                    prob = nGramDict.get(unFormatText(startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + unformattedSuccessor)).get(unFormatText(successorL2));
                 }
 
                 if (prob !== undefined) {prob = prob.toFixed(2)}
@@ -1028,17 +1166,6 @@ export default function Visualizations() {
                 
 
             }
-
-            //Add to the allSecondOrderElements array
-
-            //First, determine the type of entry. This can be a single word, a box, or a "split node" layout, abbreviated to split for our purposes.
-            let type = "box";
-            if (successorIDsL1L2[i].length === 1) {type = "single"}
-            else if (successorIDsL1L2[i].length <= Math.min(columnSizes[i], maxNodeSplitSize)) {type = "split"}
-
-            //Height is only non-zero for boxes, which will updated as the boxes are drawn
-            let entry = {"type" : type, "elements" : successorIDsL1L2[i], "centerLine" : allFirstOrderPositions[i], height : 0};
-            allSecondOrderElements.push(entry);
 
         }
         
@@ -1155,9 +1282,9 @@ export default function Visualizations() {
             for (let i = 0; i < maxFirstOrderSuccessors; i++) {
 
                 //Skip if this is a dead-end successor
-                if ((modelType === "Bi-gram" && nGramDict.get(successorsL1[i])) === undefined ||
-                    (modelType === "Tri-gram" && nGramDict.get(startKey.split(" ")[startKey.split(" ").length - 1] + " " + successorsL1[i]) === undefined) ||
-                    (modelType === "Tetra-gram" && nGramDict.get(startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + successorsL1[i]) === undefined)
+                if ((modelType === "Bi-gram" && nGramDict.get(unFormatText(successorsL1[i])) === undefined) ||
+                    (modelType === "Tri-gram" && nGramDict.get(unFormatText(startKey.split(" ")[startKey.split(" ").length - 1] + " " + successorsL1[i])) === undefined) ||
+                    (modelType === "Tetra-gram" && nGramDict.get(unFormatText(startKey.split(" ")[startKey.split(" ").length - 2] + " " + startKey.split(" ")[startKey.split(" ").length - 1] + " " + successorsL1[i])) === undefined)
                 ) {continue;}
 
                 //Verify that the length of the second order successors is greater than one; if not, make the box invisible
@@ -1170,6 +1297,7 @@ export default function Visualizations() {
                 //The XL2 deviation will be multiplied by the aforementioned deviation factor
                 //This should be done for the inner box
                 const rightPos = maxWidths[i] + (boundingBoxPadding * nodeWidth);
+                const leftPos = deviationFactor * maxDeviationXL2 - (boundingBoxPadding * nodeWidth);
 
                 //Two boxes will be created in the instance that the model is not a Bi-gram - one outer, one inner.
                 //The outer box will be invisible and include the key fragment prior to the intended successor chain
@@ -1199,9 +1327,6 @@ export default function Visualizations() {
 
                     if (boxBorderWidth === 0 && modelType === "Bi-gram") {height = 77;}
                     else {height = numWordsHighest * maxDeviationYL2};
-
-                    //Add box height to allSecondOrderElements
-                    allSecondOrderElements[i]["height"] = height;
 
                     //Set the actual L2 bounding box
                     const boundingBox = {
@@ -1274,13 +1399,8 @@ export default function Visualizations() {
                 if (successorIDsL1L2[i].length === 1 || !moreThanOneSuccessor[i]) {
                     
                     if (modelType === "Bi-gram") {
-
                         sourceNode = successorIDsL0L1[i];
                         targetNode = "BOX_L2_" + i;
-
-                        //Add bounding box to allSecondOrderElements
-                        allSecondOrderElements[i]["elements"].push("BOX_L2_" + i)
-
                     } else {
                         sourceNode = bracketNodesL1L2[i];
                         targetNode = successorIDsL1L2[i][successorIDsL1L2[i].length - 1]
@@ -1300,9 +1420,6 @@ export default function Visualizations() {
                     let L2SuccessorNodes = graphArr.filter((data_entry, data_index) =>
                         successorIDsL1L2[i].includes(data_entry["data"]["id"])
                     )
-
-                    //Calculate maxDeviationSplitL2 such that spacing between these nodes is identical to the spacing between the L2 successor elements
-                    maxDeviationSplitL2 = (L2SuccessorNodes.length  + 1) * L2SpacingDistance / 2;
 
                     //Create a variable to hold the current y position
                     let currYPos = allFirstOrderPositions[i] - maxDeviationSplitL2;
@@ -1349,17 +1466,18 @@ export default function Visualizations() {
                             let words2 = successorsL1L2[i];
                             words2.push(word1);
 
+                            //Find length of longest word
+                            let longestLength = 0;
+                            for (let k = 0; k < words2.length; k++) {if (words2[k].length > longestLength) {longestLength = words2[k].length}}
+
                             //As an extension, add a bracket next to the longest length
-                            let newBracketNode = {data : {id : successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET_" + x, label : "]"}, position : {x: determineBracketXPos(words2, midpoint), y : currYPos}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                            let newBracketNode = {data : {id : successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET_" + x, label : "]"}, position : {x: midpoint + maxWrap/2, y : currYPos}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
                             graphArr.push(newBracketNode)
 
-                            //Add for second-order key repositioning
-                            allSecondOrderElements[i]["elements"].push(successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET_" + x);
-
                             //Create a new variable to evenly space nodes amongst the given position
-                            let embeddedYPos = currYPos - multiWordDist;
+                            let embeddedYPos = currYPos - 45;
                             //Increment
-                            const embeddedIncrement = multiWordDist * 2 / (nPartitions + 1)
+                            const embeddedIncrement = 45 * 2 / (nPartitions + 1)
                             embeddedYPos += embeddedIncrement
 
                             //Iterate over previous key nodes
@@ -1370,12 +1488,6 @@ export default function Visualizations() {
 
                                 //Add to graph
                                 graphArr.push(keyNode);
-
-                                //Add to allSecondOrderElements
-                                if (w !== prevKey.split(" ")[w].length - 1) {
-                                    allSecondOrderElements[i]["elements"].push(prevKey.split(" ")[w] + "_L2_MULTIGRAM_HEADER_" + x);
-                                }
-                                
 
                             }
 
@@ -1408,9 +1520,6 @@ export default function Visualizations() {
                 //If not a bi-gram, moreThanOneSuccessor[i] must be true for this to execute
                 } else if (modelType === "Bi-gram" || moreThanOneSuccessor[i]) {
 
-                    //Add bounding box to allSecondOrderElements
-                    allSecondOrderElements[i]["elements"].push("BOX_L2_" + i)
-
                     if (modelType === "Bi-gram") {sourceNode = successorIDsL0L1[i];} 
                     else {sourceNode = bracketNodesL1L2[i];}
                     targetNode = "BOX_L2_" + i;
@@ -1432,165 +1541,35 @@ export default function Visualizations() {
                     //Create node from the hangingInitPhrases array as well as a new bracket
                     //let newHangingNode = {data : {id : hangingInitPhrases[i] + "_HANGING_PHRASE_" + i, label : hangingInitPhrases[i]}, position : {x: (midpoint - (0.5 * boxDist)) - 40, y : allFirstOrderPositions[i] - 25}};
                     let newHangingNode = {data : {id : hangingInitPhrases[i] + "_HANGING_PHRASE_" + i, label : hangingInitPhrases[i]}, position : {x: midpoint, y : allFirstOrderPositions[i] - (height/2) - 25}, grabbable : false};
-                    
                     //Add to graph
                     graphArr.push(newHangingNode)
-
-                    //Add hanging node to allSecondOrderElements for repositioning
-                    allSecondOrderElements[i]["elements"].push(hangingInitPhrases[i] + "_HANGING_PHRASE_" + i)
 
                     if (modelType !== "Bi-gram") {
                         let newBracketNode = {data : {id : successorIDsL0L1[i] + "_BRACKET", label : "]"}, position : {x: midpoint + (boxDist/2) + 25 , y : allFirstOrderPositions[i] - (height/2)}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
                         graphArr.push(newBracketNode)
-
-                        //Add bracket node for repositioning as well
-                        allSecondOrderElements[i]["elements"].push(successorIDsL0L1[i] + "_BRACKET")
                     }
 
                 } else {
 
                     if (modelType !== "Bi-gram" && renderBracket) {
 
-                        //Determine bracket x-position by figuring out the longest word in the previous chain. Done via function; generate word list first.
+                        //Determine bracket x-position by figuring out the longest word in the previous chain
                         let word1 = successorsL1[i];
                         let words2 = successorsL1L2[i];
                         words2.push(word1);
 
-                        let newBracketNode = {data : {id : successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET", label : "]"}, position : {x: determineBracketXPos(words2, midpoint), y : allFirstOrderPositions[i]}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
+                        //Find length of longest word
+                        let longestLength = 0;
+                        for (let k = 0; k < words2.length; k++) {if (words2[k].length > longestLength) {longestLength = words2[k].length}}
+
+                        //Right bound of the bracket will be midpoint + 1/2 of the longest length times the number of pixels occupied by the characters.
+                        //The optimal constant can be found through trial and error; but generally, will be between 8 - 20 (divided by two of course)
+
+                        let newBracketNode = {data : {id : successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET", label : "]"}, position : {x: midpoint + (maxWrap/2), y : allFirstOrderPositions[i]}, style : {height : 50, width : 25, "font-size" : 70}, grabbable : false};
                         graphArr.push(newBracketNode)
-
-                        //Add bracket node for repositioning as well
-                        allSecondOrderElements[i]["elements"].push(successorIDsL1L2[i][successorIDsL1L2[i].length - 1] + "_BRACKET")
                     }
                 }
                 
-            }
-
-            //If there is more than one L1 successor, re-arrange all second-order successors such that they are evenly spaced. Then, arrange the L1 successors such that this is possible
-            if (successorsL1.length > 1) {
-
-                //Here's how this algorithm works. We find the bottom of the first set of L2 successors. Then, we determine what type the next set of L2 successors is.
-                //If the next set is simply a single word, well, we just make sure it's spaced by L2SpacingDistance. 
-                //If it is a box, we find it's centerline and height. We calculate how far the edge of the box is away from the current bottom. We rearrange the successors such that they are L2SpacingDistance away from the current bottom.
-                ///If it is a split set of nodes, we find the topmost node and see how far away it is away from the current bottom, and re-arrange accordingly.
-                //We do this until all the successors have been sorted out.
-                //Then, we re-position the L1 successors to the new center line.
-
-                //Iterate through all sets of second order successors
-                for (let i = 0; i < maxFirstOrderSuccessors - 1; i++) {
-
-                    //Check that the bottom of this set and the top of the next set are correctly spaced
-                    //If not, rearrange them and change the position of the corresponding L1 successors
-                    
-                    let thisBottom = findEdge(allSecondOrderElements, graphArr, i, "bottom");
-                    let nextTop = findEdge(allSecondOrderElements, graphArr, i + 1, "top");
-
-                    //If the two coordinates are the same sign, a - b yields the difference.
-                    //If they are different signs, a - (-b) yields the sum.
-                    //This is the approach needed to find the absolute distance between the top and bottom corrdinates.
-                    if (Math.abs(thisBottom - nextTop) !== L2SpacingDistance) {
-
-                        //How much to move the elements by. Change sign depending on if the distance must be increased or decreased
-                        //If thisBottom is less than nextTop, subtract l2 spacing distance.
-                        //But, if the top is less than this bottom (meaning that the two are overlapping), ADD the l2 spacing distance instead
-                        //AND, for the latter case, negate rearrangeDistance as it will be negated once more to account for normal cases
-
-                        //Why is this overlap correction (when the top is less than the bottom) necessary? Well, without this, in overlap cases, we get a positive difference, but the algorithm would simply treat this difference as if it were between
-                        //two non-overlapped boxes. So, its corrections would simply take this distance, see how far it was off from the desired distance, and fix accordingly.
-                        //This didn't account for the correction required to REMOVE the overlap in the first place - hence why we must first ADD the overlap correction and then ADD the spacing distance to get the total amount corrected for.
-                        //And of course, since we are moving down, we must negate the entire expression -> positive in cytoscape moves elements down, and we invert the value of rearrangeDistance.
-                        let rearrangeDistance;
-                        if (thisBottom < nextTop) {rearrangeDistance = Math.abs(thisBottom - nextTop) - L2SpacingDistance;}
-                        else {rearrangeDistance = -(Math.abs(thisBottom - nextTop) + L2SpacingDistance);}
-
-                        //If rearrangeDistance is positive, we must shrink the distance - move the elements up, making rearrangeDistance negative
-                        //If it is negative, we must grow the distance - rearrangeDistance must be positive
-                        //In either case, invert the sign
-                        rearrangeDistance = -rearrangeDistance;
-
-                        //Iterate through the graph array and change the positions of all elements pertaining to this set
-                        graphArr.forEach(data_entry => {
-
-                            //Check that the node belongs to the set
-                            if (allSecondOrderElements[i + 1]["elements"].includes(data_entry["data"]["id"])) {
-                                
-                                //Change its y-position accordingly
-                                data_entry["position"]["y"] = data_entry["position"]["y"] + rearrangeDistance;
-
-                            }
-
-                        })
-
-                        //Adjust the position of the first-order successor as well
-
-                        let L1Node = graphArr.filter((data_item, data_entry) => data_item["data"]["id"] === successorIDsL0L1[i + 1])
-                        L1Node[0]["position"]["y"] = L1Node[0]["position"]["y"] + rearrangeDistance;
-
-                        //For tri-and-tetra grams, move the previous words corresponding to the word + the bracket as well
-                        if (modelType !== "Bi-gram") {
-
-                            //Move the bracket
-                            let bracketNode = graphArr.filter((data_item, data_entry) => data_item["data"]["id"] === bracketNodesL1L2[i + 1])
-                            bracketNode[0]["position"]["y"] = bracketNode[0]["position"]["y"] + rearrangeDistance;
-
-                            //Move the other words that belong to this key
-                            for (let j = 0; j < multiWordL0L1IDs[i + 1].length - 1; j++) {
-
-                                let wordNode = graphArr.filter((data_item, data_entry) => data_item["data"]["id"] === multiWordL0L1IDs[i + 1][j])
-                                wordNode[0]["position"]["y"] = wordNode[0]["position"]["y"] + rearrangeDistance;
-
-                            }
-
-                        }
-
-                        //Update the center line
-                        allSecondOrderElements[i + 1]["centerLine"] = allSecondOrderElements[i + 1]["centerLine"] + rearrangeDistance;
-                    
-                    }
-
-                }
-
-                //Store the first and final center lines to compute the correct centered position of the startKey after the algorithm has been run.
-                let firstLine = allSecondOrderElements[0]["centerLine"]
-                let lastLine = allSecondOrderElements[allSecondOrderElements.length - 1]["centerLine"]
-                
-                //For bi-grams, simply place the start node.
-                if (modelType === "Bi-gram") {
-
-                    //Average the two and set as the position of the new start key
-                    let startNode = graphArr.filter((data_item, data_entry) => data_item["data"]["id"] === reFormatText(startKey))
-                    startNode[0]["position"]["y"] = (firstLine + lastLine)/2
-                
-                //For tri-and-tetra grams, split the start key and distribute evenly across the given coordinate
-                } else {
-
-                    //Split words
-                    let words = reFormatText(startKey).split(" ");
-
-                    //Split around a 50 px region
-                    let region = 50;
-                    let centerAxis = (firstLine + lastLine) / 2;
-                    let yCoord = centerAxis - region;
-
-                    //Determine # of partitions
-                    let n = words.length;
-
-                    //Iterate and re-position words
-                    for (let j = 0; j < n; j++) {
-
-                        yCoord += (Math.abs(region) * 2 / (n + 1));
-                        //Change coordinate
-                        let currNode = graphArr.filter((data_item, data_entry) => data_item["data"]["id"] === words[j] + "_START_" + j);
-                        currNode[0]["position"]["y"] = yCoord;
-
-                    }
-
-                    //Move the bracket
-                    let bracketNode = graphArr.filter((data_item, data_entry) => data_item["data"]["id"] === reFormatText(startKey) + "_BRACKET");
-                    bracketNode[0]["position"]["y"] = centerAxis;
-
-
-                }
             }
         }
 
@@ -1694,7 +1673,7 @@ export default function Visualizations() {
                 </div>
             </div>
             <div id = "cyto-frame" className = "visualization-graph" class = "flex w-11/12 h-5/6 bg-white rounded-md">
-                {layoutBuilt && <CytoscapeComponent className = "graph" id = "graph" class = "h-full w-full" stylesheet = {graphStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}}/>}
+                {layoutBuilt && <CytoscapeComponent className = "graph" id = "graph" class = "h-full w-full" stylesheet = {graphStyle} elements = {graphData} layout = {layout} style = {{width : '100%', height : "100%"}} ref = {graphRef}/>}
                 {!layoutBuilt && <div className = "loading" class = "flex h-full w-full text-center align-center items-center justify-center">Loading...</div>}
                 {/* <div className = "loading" class = "flex h-full w-full text-center align-center items-center justify-center">Coming soon! Please stay tuned.</div> */}
             </div>
