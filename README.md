@@ -12,6 +12,8 @@ You can run a live version of the demo here: [Markov Chain Demo](https://www.cs.
 
 *P.S. - If you'd like to know more about the demo and Markov Chains, head over to the About/Help menu!*
 
+Teachers: see this [Markov Chain Actvitiy Guide](https://ai4k12.org/wp-content/uploads/markov_chain-activity_guide.pdf).
+
 ## Building the Demo Locally.
 
 If you'd like to create your own version of the demo or modify some bits and pieces, here are some key instructions.
